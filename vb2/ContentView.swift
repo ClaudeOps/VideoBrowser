@@ -16,6 +16,12 @@ enum SortOption: String, CaseIterable {
     case random = "Random"
 }
 
+enum PlaybackEndOption: String, CaseIterable {
+    case stop = "Stop"
+    case replay = "Replay"
+    case playNext = "Play Next"
+}
+
 struct ContentView: View {
     @State private var videoFiles: [URL] = []
     @State private var selectedFolder: URL?
@@ -23,6 +29,7 @@ struct ContentView: View {
     @State private var currentIndex = 0
     @State private var player: AVPlayer?
     @State private var selectedSort: SortOption = .fileName
+    @State private var playbackEndOption: PlaybackEndOption = .playNext
     
     var body: some View {
         VStack(spacing: 0) {
@@ -42,17 +49,32 @@ struct ContentView: View {
                 
                 // Sort options
                 if !videoFiles.isEmpty {
-                    HStack(spacing: 10) {
-                        Text("Sort by:")
-                            .font(.subheadline)
-                        
-                        Picker("", selection: $selectedSort) {
-                            ForEach(SortOption.allCases, id: \.self) { option in
-                                Text(option.rawValue).tag(option)
+                    HStack(spacing: 20) {
+                        HStack(spacing: 10) {
+                            Text("Sort by:")
+                                .font(.subheadline)
+                            
+                            Picker("", selection: $selectedSort) {
+                                ForEach(SortOption.allCases, id: \.self) { option in
+                                    Text(option.rawValue).tag(option)
+                                }
                             }
+                            .pickerStyle(.menu)
+                            .frame(width: 200)
                         }
-                        .pickerStyle(.menu)
-                        .frame(width: 200)
+                        
+                        HStack(spacing: 10) {
+                            Text("When video ends:")
+                                .font(.subheadline)
+                            
+                            Picker("", selection: $playbackEndOption) {
+                                ForEach(PlaybackEndOption.allCases, id: \.self) { option in
+                                    Text(option.rawValue).tag(option)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .frame(width: 150)
+                        }
                     }
                 }
                 
@@ -197,9 +219,43 @@ struct ContentView: View {
         currentIndex = index
         let videoURL = videoFiles[index]
         
+        // Remove previous observer if it exists
+        if let player = player {
+            NotificationCenter.default.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: player.currentItem)
+        }
+        
         player?.pause()
         player = AVPlayer(url: videoURL)
+        
+        // Add observer for when video ends
+        NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime,
+            object: player?.currentItem,
+            queue: .main
+        ) { [self] _ in
+            handleVideoEnd()
+        }
+        
         player?.play()
+    }
+    
+    func handleVideoEnd() {
+        switch playbackEndOption {
+        case .stop:
+            // Do nothing, video stays at the end
+            break
+            
+        case .replay:
+            // Seek back to beginning and play again
+            player?.seek(to: .zero)
+            player?.play()
+            
+        case .playNext:
+            // Play next video if available
+            if currentIndex < videoFiles.count - 1 {
+                playVideo(at: currentIndex + 1)
+            }
+        }
     }
     
     func playPrevious() {
