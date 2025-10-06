@@ -8,12 +8,21 @@
 import SwiftUI
 import AVKit
 
+enum SortOption: String, CaseIterable {
+    case fileName = "File Name"
+    case filePath = "File Path"
+    case sizeAscending = "Size (Smallest First)"
+    case sizeDescending = "Size (Largest First)"
+    case random = "Random"
+}
+
 struct ContentView: View {
     @State private var videoFiles: [URL] = []
     @State private var selectedFolder: URL?
     @State private var isScanning = false
     @State private var currentIndex = 0
     @State private var player: AVPlayer?
+    @State private var selectedSort: SortOption = .fileName
     
     var body: some View {
         VStack(spacing: 0) {
@@ -30,6 +39,22 @@ struct ContentView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(isScanning)
+                
+                // Sort options
+                if !videoFiles.isEmpty {
+                    HStack(spacing: 10) {
+                        Text("Sort by:")
+                            .font(.subheadline)
+                        
+                        Picker("", selection: $selectedSort) {
+                            ForEach(SortOption.allCases, id: \.self) { option in
+                                Text(option.rawValue).tag(option)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(width: 200)
+                    }
+                }
                 
                 // Selected folder path
                 if let folder = selectedFolder {
@@ -94,6 +119,9 @@ struct ContentView: View {
             }
         }
         .frame(minWidth: 800, minHeight: 600)
+        .onChange(of: selectedSort) { _, _ in
+            applySorting()
+        }
     }
     
     func selectFolder() {
@@ -148,6 +176,7 @@ struct ContentView: View {
                 DispatchQueue.main.async {
                     self.videoFiles = foundFiles
                     self.isScanning = false
+                    self.selectedSort = .fileName
                     
                     // Start playing first video if available
                     if !foundFiles.isEmpty {
@@ -182,6 +211,43 @@ struct ContentView: View {
     func playNext() {
         if currentIndex < videoFiles.count - 1 {
             playVideo(at: currentIndex + 1)
+        }
+    }
+    
+    func applySorting() {
+        guard !videoFiles.isEmpty else { return }
+        
+        let currentVideoURL = videoFiles[currentIndex]
+        
+        switch selectedSort {
+        case .fileName:
+            videoFiles.sort { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+            
+        case .filePath:
+            videoFiles.sort { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
+            
+        case .sizeAscending:
+            videoFiles.sort { getFileSize($0) < getFileSize($1) }
+            
+        case .sizeDescending:
+            videoFiles.sort { getFileSize($0) > getFileSize($1) }
+            
+        case .random:
+            videoFiles.shuffle()
+        }
+        
+        // Update current index to maintain the same video
+        if let newIndex = videoFiles.firstIndex(of: currentVideoURL) {
+            currentIndex = newIndex
+        }
+    }
+    
+    func getFileSize(_ url: URL) -> Int64 {
+        do {
+            let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
+            return attributes[.size] as? Int64 ?? 0
+        } catch {
+            return 0
         }
     }
 }
