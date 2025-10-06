@@ -6,71 +6,94 @@
 //
 
 import SwiftUI
+import AVKit
 
 struct ContentView: View {
     @State private var videoFiles: [URL] = []
     @State private var selectedFolder: URL?
     @State private var isScanning = false
+    @State private var currentIndex = 0
+    @State private var player: AVPlayer?
     
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 0) {
             // Header
-            Text("Video File Finder")
-                .font(.largeTitle)
-                .padding(.top)
-            
-            // Select Folder Button
-            Button(action: selectFolder) {
-                Label("Select Folder", systemImage: "folder")
-                    .font(.title3)
+            VStack(spacing: 10) {
+                Text("Video Player")
+                    .font(.largeTitle)
+                    .padding(.top)
+                
+                // Select Folder Button
+                Button(action: selectFolder) {
+                    Label("Select Folder", systemImage: "folder")
+                        .font(.title3)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(isScanning)
+                
+                // Selected folder path
+                if let folder = selectedFolder {
+                    Text("Selected: \(folder.path)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(isScanning)
-            
-            // Selected folder path
-            if let folder = selectedFolder {
-                Text("Selected: \(folder.path)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            }
+            .padding()
             
             Divider()
             
-            // Video files list
+            // Main content area
             if isScanning {
                 ProgressView("Scanning for video files...")
-                    .padding()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if videoFiles.isEmpty {
                 Text("No video files found. Select a folder to begin.")
                     .foregroundColor(.secondary)
-                    .frame(maxHeight: .infinity)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Found \(videoFiles.count) video file\(videoFiles.count == 1 ? "" : "s")")
-                        .font(.headline)
-                    
-                    List(videoFiles, id: \.self) { file in
-                        HStack {
-                            Image(systemName: "film")
-                                .foregroundColor(.blue)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(file.lastPathComponent)
-                                    .font(.body)
-                                Text(file.deletingLastPathComponent().path)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                    .lineLimit(1)
-                            }
-                        }
-                        .padding(.vertical, 2)
+                // Video player
+                VStack(spacing: 0) {
+                    if let player = player {
+                        VideoPlayer(player: player)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
+                    
+                    // Controls
+                    VStack(spacing: 10) {
+                        // Current file info
+                        VStack(spacing: 4) {
+                            Text(videoFiles[currentIndex].lastPathComponent)
+                                .font(.headline)
+                                .lineLimit(1)
+                            Text("Video \(currentIndex + 1) of \(videoFiles.count)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.top, 10)
+                        
+                        // Navigation buttons
+                        HStack(spacing: 20) {
+                            Button(action: playPrevious) {
+                                Label("Previous", systemImage: "backward.fill")
+                            }
+                            .disabled(currentIndex == 0)
+                            .buttonStyle(.bordered)
+                            
+                            Button(action: playNext) {
+                                Label("Next", systemImage: "forward.fill")
+                            }
+                            .disabled(currentIndex >= videoFiles.count - 1)
+                            .buttonStyle(.bordered)
+                        }
+                        .padding(.bottom, 10)
+                    }
+                    .background(Color(NSColor.controlBackgroundColor))
                 }
             }
         }
-        .padding()
-        .frame(minWidth: 600, minHeight: 400)
+        .frame(minWidth: 800, minHeight: 600)
     }
     
     func selectFolder() {
@@ -91,11 +114,15 @@ struct ContentView: View {
     func scanForVideoFiles(in directory: URL) {
         isScanning = true
         videoFiles.removeAll()
+        player?.pause()
+        player = nil
+        currentIndex = 0
         
         // Scan in background thread
         DispatchQueue.global(qos: .userInitiated).async {
             let fileManager = FileManager.default
-            let videoExtensions = ["mp4", "mov", "avi", "mkv", "m4v", "wmv", "flv", "webm", "mpeg", "mpg", "3gp", "m2ts", "mts"]
+            // AVPlayer compatible formats (native macOS support)
+            let videoExtensions = ["mp4", "mov", "m4v", "3gp"]
             
             if let enumerator = fileManager.enumerator(at: directory, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles]) {
                 var foundFiles: [URL] = []
@@ -121,12 +148,40 @@ struct ContentView: View {
                 DispatchQueue.main.async {
                     self.videoFiles = foundFiles
                     self.isScanning = false
+                    
+                    // Start playing first video if available
+                    if !foundFiles.isEmpty {
+                        self.playVideo(at: 0)
+                    }
                 }
             } else {
                 DispatchQueue.main.async {
                     self.isScanning = false
                 }
             }
+        }
+    }
+    
+    func playVideo(at index: Int) {
+        guard index >= 0 && index < videoFiles.count else { return }
+        
+        currentIndex = index
+        let videoURL = videoFiles[index]
+        
+        player?.pause()
+        player = AVPlayer(url: videoURL)
+        player?.play()
+    }
+    
+    func playPrevious() {
+        if currentIndex > 0 {
+            playVideo(at: currentIndex - 1)
+        }
+    }
+    
+    func playNext() {
+        if currentIndex < videoFiles.count - 1 {
+            playVideo(at: currentIndex + 1)
         }
     }
 }
