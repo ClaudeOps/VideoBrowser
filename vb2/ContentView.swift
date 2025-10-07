@@ -144,6 +144,28 @@ struct ContentView: View {
         .onChange(of: selectedSort) { _, _ in
             applySorting()
         }
+        .onAppear {
+            NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                handleKeyPress(event: event)
+                return event
+            }
+        }
+    }
+    
+    func handleKeyPress(event: NSEvent) -> NSEvent? {
+        switch event.keyCode {
+        case 123: // Left arrow
+            if currentIndex > 0 {
+                playPrevious()
+            }
+        case 124: // Right arrow
+            if currentIndex < videoFiles.count - 1 {
+                playNext()
+            }
+        default:
+            break
+        }
+        return event
     }
     
     func selectFolder() {
