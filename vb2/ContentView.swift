@@ -31,6 +31,8 @@ struct ContentView: View {
     @State private var selectedSort: SortOption = .fileName
     @State private var playbackEndOption: PlaybackEndOption = .playNext
     @State private var showingPermissionAlert = false
+    @State private var fileSizeCache: [URL: Int64] = [:]
+    @State private var isSorting = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -210,9 +212,6 @@ struct ContentView: View {
             } else if characters == "m" {
                 moveCurrentFile(to: "/Volumes/Seagate-8TB/USBDDP1/xxxxx/all/CIS/move")
                 return nil // Consume the event
-//            } else if characters == "a" {
-//                moveCurrentFile(to: "/Volumes/A")
-//                return nil // Consume the event
             }
         }
         return event // Pass through unhandled events
@@ -339,9 +338,18 @@ struct ContentView: View {
                 // Sort files alphabetically
                 foundFiles.sort { $0.path < $1.path }
                 
+                // Build file size cache in background
+                var sizeCache: [URL: Int64] = [:]
+                for fileURL in foundFiles {
+                    if let size = try? FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? Int64 {
+                        sizeCache[fileURL] = size
+                    }
+                }
+                
                 // Update UI on main thread
                 DispatchQueue.main.async {
                     self.videoFiles = foundFiles
+                    self.fileSizeCache = sizeCache
                     self.isScanning = false
                     self.selectedSort = .fileName
                     
@@ -440,39 +448,65 @@ struct ContentView: View {
     
     func applySorting() {
         guard !videoFiles.isEmpty else { return }
+        guard !isSorting else { return }
         
         let currentVideoURL = videoFiles[currentIndex]
         
-        switch selectedSort {
-        case .fileName:
-            videoFiles.sort { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+        // For simple sorts, do them immediately
+        if selectedSort == .fileName || selectedSort == .filePath || selectedSort == .random {
+            switch selectedSort {
+            case .fileName:
+                videoFiles.sort { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+                
+            case .filePath:
+                videoFiles.sort { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
+                
+            case .random:
+                videoFiles.shuffle()
+                
+            default:
+                break
+            }
             
-        case .filePath:
-            videoFiles.sort { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
+            // Update current index to maintain the same video
+            if let newIndex = videoFiles.firstIndex(of: currentVideoURL) {
+                currentIndex = newIndex
+            }
+        } else {
+            // For size sorts, do them in background
+            isSorting = true
+            let filesToSort = videoFiles
+            let cache = fileSizeCache
             
-        case .sizeAscending:
-            videoFiles.sort { getFileSize($0) < getFileSize($1) }
-            
-        case .sizeDescending:
-            videoFiles.sort { getFileSize($0) > getFileSize($1) }
-            
-        case .random:
-            videoFiles.shuffle()
-        }
-        
-        // Update current index to maintain the same video
-        if let newIndex = videoFiles.firstIndex(of: currentVideoURL) {
-            currentIndex = newIndex
+            DispatchQueue.global(qos: .userInitiated).async {
+                var sortedFiles = filesToSort
+                
+                switch self.selectedSort {
+                case .sizeAscending:
+                    sortedFiles.sort { self.getCachedFileSize($0, cache: cache) < self.getCachedFileSize($1, cache: cache) }
+                    
+                case .sizeDescending:
+                    sortedFiles.sort { self.getCachedFileSize($0, cache: cache) > self.getCachedFileSize($1, cache: cache) }
+                    
+                default:
+                    break
+                }
+                
+                DispatchQueue.main.async {
+                    self.videoFiles = sortedFiles
+                    self.isSorting = false
+                    
+                    // Update current index to maintain the same video
+                    if let newIndex = self.videoFiles.firstIndex(of: currentVideoURL) {
+                        self.currentIndex = newIndex
+                    }
+                }
+            }
         }
     }
     
-    func getFileSize(_ url: URL) -> Int64 {
-        do {
-            let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
-            return attributes[.size] as? Int64 ?? 0
-        } catch {
-            return 0
-        }
+    func getCachedFileSize(_ url: URL, cache: [URL: Int64]) -> Int64 {
+        return cache[url] ?? 0
     }
 }
 
