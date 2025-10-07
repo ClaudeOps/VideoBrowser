@@ -152,42 +152,13 @@ struct ContentView: View {
             applySorting()
         }
         .onAppear {
-            checkFullDiskAccess()
-            
             NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
                 return handleKeyPress(event: event)
             }
         }
-        .alert("Full Disk Access Required", isPresented: $showingPermissionAlert) {
-            Button("Open System Settings") {
-                openSystemPreferences()
-            }
-            Button("Cancel", role: .cancel) { }
-        } message: {
-            Text("This app needs Full Disk Access to move and manage video files. Please grant access in System Settings > Privacy & Security > Full Disk Access.")
-        }
+
     }
-    
-    func checkFullDiskAccess() {
-        // Try to access a protected directory to check for Full Disk Access
-        let testPath = NSHomeDirectory() + "/Library/Safari"
-        let testURL = URL(fileURLWithPath: testPath)
         
-        do {
-            _ = try FileManager.default.contentsOfDirectory(at: testURL, includingPropertiesForKeys: nil)
-            // If we can read Safari directory, we likely have Full Disk Access
-        } catch {
-            // If we can't access it, we likely need Full Disk Access
-            showingPermissionAlert = true
-        }
-    }
-    
-    func openSystemPreferences() {
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles") {
-            NSWorkspace.shared.open(url)
-        }
-    }
-    
     func handleKeyPress(event: NSEvent) -> NSEvent? {
         // Get the character from the key press
         guard let characters = event.characters?.lowercased() else {
