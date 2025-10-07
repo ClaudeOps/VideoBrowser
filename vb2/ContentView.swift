@@ -30,6 +30,7 @@ struct ContentView: View {
     @State private var player: AVPlayer?
     @State private var selectedSort: SortOption = .fileName
     @State private var playbackEndOption: PlaybackEndOption = .playNext
+    @State private var showingPermissionAlert = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -125,13 +126,17 @@ struct ContentView: View {
                             Button(action: playPrevious) {
                                 Label("Previous", systemImage: "backward.fill")
                             }
-                            .disabled(currentIndex == 0)
                             .buttonStyle(.bordered)
+                  
+                            Button(action: playRandom) {
+                                 Label("Random", systemImage: "shuffle")
+                             }
+                             .disabled(videoFiles.count <= 1)
+                             .buttonStyle(.bordered)
                             
                             Button(action: playNext) {
                                 Label("Next", systemImage: "forward.fill")
                             }
-                            .disabled(currentIndex >= videoFiles.count - 1)
                             .buttonStyle(.bordered)
                         }
                         .padding(.bottom, 10)
@@ -145,27 +150,145 @@ struct ContentView: View {
             applySorting()
         }
         .onAppear {
+            checkFullDiskAccess()
+            
             NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-                handleKeyPress(event: event)
-                return event
+                return handleKeyPress(event: event)
             }
+        }
+        .alert("Full Disk Access Required", isPresented: $showingPermissionAlert) {
+            Button("Open System Settings") {
+                openSystemPreferences()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This app needs Full Disk Access to move and manage video files. Please grant access in System Settings > Privacy & Security > Full Disk Access.")
+        }
+    }
+    
+    func checkFullDiskAccess() {
+        // Try to access a protected directory to check for Full Disk Access
+        let testPath = NSHomeDirectory() + "/Library/Safari"
+        let testURL = URL(fileURLWithPath: testPath)
+        
+        do {
+            _ = try FileManager.default.contentsOfDirectory(at: testURL, includingPropertiesForKeys: nil)
+            // If we can read Safari directory, we likely have Full Disk Access
+        } catch {
+            // If we can't access it, we likely need Full Disk Access
+            showingPermissionAlert = true
+        }
+    }
+    
+    func openSystemPreferences() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles") {
+            NSWorkspace.shared.open(url)
         }
     }
     
     func handleKeyPress(event: NSEvent) -> NSEvent? {
+        // Get the character from the key press
+        guard let characters = event.characters?.lowercased() else {
+            return event
+        }
+        
         switch event.keyCode {
         case 123: // Left arrow
-            if currentIndex > 0 {
-                playPrevious()
-            }
+            playPrevious()
+            return nil // Consume the event
         case 124: // Right arrow
-            if currentIndex < videoFiles.count - 1 {
-                playNext()
-            }
+            playNext()
+            return nil // Consume the event
+        case 51: // Delete key
+            moveCurrentFileToTrash()
+            return nil // Consume the event
         default:
-            break
+            // Handle character keys
+            if characters == "r" {
+                playRandom()
+                return nil // Consume the event
+            } else if characters == "m" {
+                moveCurrentFile(to: "/Volumes/Seagate-8TB/USBDDP1/xxxxx/all/CIS/move")
+                return nil // Consume the event
+//            } else if characters == "a" {
+//                moveCurrentFile(to: "/Volumes/A")
+//                return nil // Consume the event
+            }
         }
-        return event
+        return event // Pass through unhandled events
+    }
+    
+    func moveCurrentFile(to destinationPath: String) {
+        guard currentIndex < videoFiles.count else { return }
+        
+        let fileURL = videoFiles[currentIndex]
+        let fileName = fileURL.lastPathComponent
+        let destinationURL = URL(fileURLWithPath: destinationPath).appendingPathComponent(fileName)
+        
+        do {
+            // Check if destination directory exists
+            let fileManager = FileManager.default
+            if !fileManager.fileExists(atPath: destinationPath) {
+                print("Destination directory does not exist: \(destinationPath)")
+                return
+            }
+            
+            // Stop playing current video
+            player?.pause()
+            
+            // Move the file
+            try fileManager.moveItem(at: fileURL, to: destinationURL)
+            
+            // Remove from list
+            videoFiles.remove(at: currentIndex)
+            
+            // Play next video or adjust index
+            if videoFiles.isEmpty {
+                player = nil
+                currentIndex = 0
+            } else if currentIndex >= videoFiles.count {
+                currentIndex = videoFiles.count - 1
+                playVideo(at: currentIndex)
+            } else {
+                playVideo(at: currentIndex)
+            }
+            
+            print("Moved file to: \(destinationURL.path)")
+        } catch {
+            print("Error moving file: \(error.localizedDescription)")
+        }
+    }
+    
+    func moveCurrentFileToTrash() {
+        guard currentIndex < videoFiles.count else { return }
+        
+        let fileURL = videoFiles[currentIndex]
+        
+        do {
+            // Stop playing current video
+            player?.pause()
+            
+            // Move to trash using NSWorkspace
+            try FileManager.default.trashItem(at: fileURL, resultingItemURL: nil)
+            
+            // Remove from list
+            videoFiles.remove(at: currentIndex)
+            
+            // Play next video or adjust index
+            if videoFiles.isEmpty {
+                player = nil
+                currentIndex = 0
+            } else if currentIndex >= videoFiles.count {
+                currentIndex = currentIndex - 1
+                playVideo(at: currentIndex)
+            } else {
+                playVideo(at: currentIndex)
+            }
+            
+            print("Moved file to trash: \(fileURL.lastPathComponent)")
+        } catch {
+            print("Error moving file to trash: \(error.localizedDescription)")
+        }
     }
     
     func selectFolder() {
@@ -273,23 +396,46 @@ struct ContentView: View {
             player?.play()
             
         case .playNext:
-            // Play next video if available
+            // Play next video, wrapping to beginning if at end
             if currentIndex < videoFiles.count - 1 {
                 playVideo(at: currentIndex + 1)
+            } else if !videoFiles.isEmpty {
+                playVideo(at: 0)
             }
         }
     }
     
     func playPrevious() {
+        guard !videoFiles.isEmpty else { return }
+        
         if currentIndex > 0 {
             playVideo(at: currentIndex - 1)
+        } else {
+            // Wrap to last video
+            playVideo(at: videoFiles.count - 1)
         }
     }
     
     func playNext() {
+        guard !videoFiles.isEmpty else { return }
+        
         if currentIndex < videoFiles.count - 1 {
             playVideo(at: currentIndex + 1)
+        } else {
+            // Wrap to first video
+            playVideo(at: 0)
         }
+    }
+    
+    func playRandom() {
+        guard videoFiles.count > 1 else { return }
+        
+        var randomIndex: Int
+        repeat {
+            randomIndex = Int.random(in: 0..<videoFiles.count)
+        } while randomIndex == currentIndex
+        
+        playVideo(at: randomIndex)
     }
     
     func applySorting() {
