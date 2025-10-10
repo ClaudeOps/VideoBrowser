@@ -9,24 +9,25 @@ import SwiftUI
 
 @main
 struct vb2App: App {
-    @StateObject private var appState = AppState()
+    @StateObject private var viewModel = VideoPlayerViewModel()
+
     
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environmentObject(appState)
+            VideoPlayerView()
+                .environmentObject(viewModel)
         }
         .commands {  // <-- Menu bar code starts here
             CommandGroup(replacing: .newItem) {
-                Button("Open FOlder...") {
-                    appState.shouldSelectFolder = true
+                Button("Open Folder...") {
+                    viewModel.shouldSelectFolder = true
                 }
                 .keyboardShortcut("o", modifiers: [.command])
             }
             CommandMenu("Sort") {
                 ForEach(SortOption.allCases, id: \.self) { option in
                     Button(option.rawValue) {
-                        appState.selectedSort = option
+                        viewModel.setSortOption(option)
                     }
                     .keyboardShortcut(option == .fileName ? "1" :
                                     option == .filePath ? "2" :
@@ -37,7 +38,7 @@ struct vb2App: App {
             CommandMenu("Playback") {
                 ForEach(PlaybackEndOption.allCases, id: \.self) { option in
                     Button(option.rawValue) {
-                        appState.playbackEndOption = option
+                        viewModel.setPlaybackEndOption(option)
                     }
                     .keyboardShortcut(option == .stop ? "s" :
                                     option == .replay ? "l" : "n",
