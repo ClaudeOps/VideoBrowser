@@ -106,7 +106,7 @@ struct ContentView: View {
                 // Video player
                 VStack(spacing: 0) {
                     if let player = player {
-                        VideoPlayer(player: player)
+                        CustomVideoPlayer(player: player)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                     
@@ -478,6 +478,30 @@ struct ContentView: View {
     
     func getCachedFileSize(_ url: URL, cache: [URL: Int64]) -> Int64 {
         return cache[url] ?? 0
+    }
+}
+
+// Custom video player view that doesn't dim the video
+struct CustomVideoPlayer: NSViewRepresentable {
+    let player: AVPlayer
+    
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        
+        let playerLayer = AVPlayerLayer(player: player)
+        playerLayer.videoGravity = .resizeAspect
+        playerLayer.autoresizingMask = [.layerWidthSizable, .layerHeightSizable]
+        
+        view.wantsLayer = true
+        view.layer = playerLayer
+        
+        return view
+    }
+    
+    func updateNSView(_ nsView: NSView, context: Context) {
+        if let playerLayer = nsView.layer as? AVPlayerLayer {
+            playerLayer.player = player
+        }
     }
 }
 
