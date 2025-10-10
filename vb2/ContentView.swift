@@ -13,6 +13,7 @@ import Combine
 class AppState: ObservableObject {
     @Published var selectedSort: SortOption = .fileName
     @Published var playbackEndOption: PlaybackEndOption = .playNext
+    @Published var shouldSelectFolder = false
 }
 
 enum SortOption: String, CaseIterable {
@@ -40,6 +41,7 @@ struct ContentView: View {
     @State private var fileSizeCache: [URL: Int64] = [:]
     @State private var isSorting = false
     @State private var isPlaying = true
+    @State private var shouldSelectFolder = false
     
     private var selectedSort: SortOption {
         appState.selectedSort
@@ -56,14 +58,6 @@ struct ContentView: View {
                 Text("Video Player")
                     .font(.largeTitle)
                     .padding(.top)
-                
-                // Select Folder Button
-                Button(action: selectFolder) {
-                    Label("Select Folder", systemImage: "folder")
-                        .font(.title3)
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(isScanning)
                 
                 // Selected folder path
                 if let folder = selectedFolder {
@@ -143,6 +137,18 @@ struct ContentView: View {
         .onAppear {
             NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
                 return handleKeyPress(event: event)
+            }
+        }
+        .onChange(of: appState.shouldSelectFolder) { _, newValue in
+            if newValue {
+                selectFolder()
+                appState.shouldSelectFolder = false
+            }
+        }
+        .onChange(of: shouldSelectFolder) { _, newValue in
+            if newValue {
+                selectFolder()
+                shouldSelectFolder = false
             }
         }
 

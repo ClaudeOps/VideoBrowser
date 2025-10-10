@@ -17,6 +17,12 @@ struct vb2App: App {
                 .environmentObject(appState)
         }
         .commands {  // <-- Menu bar code starts here
+            CommandGroup(replacing: .newItem) {
+                Button("Open FOlder...") {
+                    appState.shouldSelectFolder = true
+                }
+                .keyboardShortcut("o", modifiers: [.command])
+            }
             CommandMenu("Sort") {
                 ForEach(SortOption.allCases, id: \.self) { option in
                     Button(option.rawValue) {
@@ -28,7 +34,6 @@ struct vb2App: App {
                                     option == .sizeDescending ? "4" : "5")
                 }
             }
-            
             CommandMenu("Playback") {
                 ForEach(PlaybackEndOption.allCases, id: \.self) { option in
                     Button(option.rawValue) {
