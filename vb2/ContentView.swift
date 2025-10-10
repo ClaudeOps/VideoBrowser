@@ -7,6 +7,13 @@
 
 import SwiftUI
 import AVKit
+import Combine
+
+// Shared state for menu bar and content view
+class AppState: ObservableObject {
+    @Published var selectedSort: SortOption = .fileName
+    @Published var playbackEndOption: PlaybackEndOption = .playNext
+}
 
 enum SortOption: String, CaseIterable {
     case fileName = "File Name"
@@ -23,17 +30,24 @@ enum PlaybackEndOption: String, CaseIterable {
 }
 
 struct ContentView: View {
+    @EnvironmentObject var appState: AppState
     @State private var videoFiles: [URL] = []
     @State private var selectedFolder: URL?
     @State private var isScanning = false
     @State private var currentIndex = 0
     @State private var player: AVPlayer?
-    @State private var selectedSort: SortOption = .fileName
-    @State private var playbackEndOption: PlaybackEndOption = .playNext
     @State private var showingPermissionAlert = false
     @State private var fileSizeCache: [URL: Int64] = [:]
     @State private var isSorting = false
     @State private var isPlaying = true
+    
+    private var selectedSort: SortOption {
+        appState.selectedSort
+    }
+    
+    private var playbackEndOption: PlaybackEndOption {
+        appState.playbackEndOption
+    }
     
     var body: some View {
         VStack(spacing: 0) {
@@ -50,37 +64,6 @@ struct ContentView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(isScanning)
-                
-                // Sort options
-                if !videoFiles.isEmpty {
-                    HStack(spacing: 20) {
-                        HStack(spacing: 10) {
-                            Text("Sort by:")
-                                .font(.subheadline)
-                            
-                            Picker("", selection: $selectedSort) {
-                                ForEach(SortOption.allCases, id: \.self) { option in
-                                    Text(option.rawValue).tag(option)
-                                }
-                            }
-                            .pickerStyle(.menu)
-                            .frame(width: 200)
-                        }
-                        
-                        HStack(spacing: 10) {
-                            Text("When video ends:")
-                                .font(.subheadline)
-                            
-                            Picker("", selection: $playbackEndOption) {
-                                ForEach(PlaybackEndOption.allCases, id: \.self) { option in
-                                    Text(option.rawValue).tag(option)
-                                }
-                            }
-                            .pickerStyle(.menu)
-                            .frame(width: 150)
-                        }
-                    }
-                }
                 
                 // Selected folder path
                 if let folder = selectedFolder {
@@ -154,7 +137,7 @@ struct ContentView: View {
             }
         }
         .frame(minWidth: 800, minHeight: 600)
-        .onChange(of: selectedSort) { _, _ in
+        .onChange(of: appState.selectedSort) { _, _ in
             applySorting()
         }
         .onAppear {
@@ -331,7 +314,7 @@ struct ContentView: View {
                     self.videoFiles = foundFiles
                     self.fileSizeCache = sizeCache
                     self.isScanning = false
-                    self.selectedSort = .fileName
+                    self.appState.selectedSort = .fileName
                     
                     // Start playing first video if available
                     if !foundFiles.isEmpty {
@@ -474,7 +457,7 @@ struct ContentView: View {
             DispatchQueue.global(qos: .userInitiated).async {
                 var sortedFiles = filesToSort
                 
-                switch self.selectedSort {
+                switch self.appState.selectedSort {
                 case .sizeAscending:
                     sortedFiles.sort { self.getCachedFileSize($0, cache: cache) < self.getCachedFileSize($1, cache: cache) }
                     
