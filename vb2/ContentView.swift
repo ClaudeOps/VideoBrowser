@@ -33,6 +33,7 @@ struct ContentView: View {
     @State private var showingPermissionAlert = false
     @State private var fileSizeCache: [URL: Int64] = [:]
     @State private var isSorting = false
+    @State private var isPlaying = true
     
     var body: some View {
         VStack(spacing: 0) {
@@ -129,6 +130,11 @@ struct ContentView: View {
                                 Label("Previous", systemImage: "backward.fill")
                             }
                             .buttonStyle(.bordered)
+                            
+                            Button(action: togglePlayPause) {
+                                Label(isPlaying ? "Pause" : "Play", systemImage: isPlaying ? "pause.fill" : "play.fill")
+                            }
+                            .buttonStyle(.bordered)
                   
                             Button(action: playRandom) {
                                  Label("Random", systemImage: "shuffle")
@@ -174,6 +180,9 @@ struct ContentView: View {
             return nil // Consume the event
         case 51: // Delete key
             moveCurrentFileToTrash()
+            return nil // Consume the event
+        case 49: // Spacebar
+            togglePlayPause()
             return nil // Consume the event
         default:
             // Handle character keys
@@ -361,6 +370,19 @@ struct ContentView: View {
         }
         
         player?.play()
+        isPlaying = true
+    }
+    
+    func togglePlayPause() {
+        guard let player = player else { return }
+        
+        if isPlaying {
+            player.pause()
+            isPlaying = false
+        } else {
+            player.play()
+            isPlaying = true
+        }
     }
     
     func handleVideoEnd() {
