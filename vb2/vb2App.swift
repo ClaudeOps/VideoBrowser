@@ -26,9 +26,17 @@ struct vb2App: App {
             }
             CommandMenu("Sort") {
                 ForEach(SortOption.allCases, id: \.self) { option in
-                    Button(option.rawValue) {
-                        viewModel.setSortOption(option)
-                    }
+                    Button(action: {
+                         viewModel.setSortOption(option)
+                     }) {
+                         HStack {
+                             Text(option.rawValue)
+                             if viewModel.selectedSort == option {
+                                 Spacer()
+                                 Image(systemName: "checkmark")
+                             }
+                         }
+                     }
                     .keyboardShortcut(option == .fileName ? "1" :
                                     option == .filePath ? "2" :
                                     option == .sizeAscending ? "3" :
@@ -37,9 +45,17 @@ struct vb2App: App {
             }
             CommandMenu("Playback") {
                 ForEach(PlaybackEndOption.allCases, id: \.self) { option in
-                    Button(option.rawValue) {
-                        viewModel.setPlaybackEndOption(option)
-                    }
+                    Button(action: {
+                         viewModel.setPlaybackEndOption(option)
+                     }) {
+                         HStack {
+                             Text(option.rawValue)
+                             if viewModel.playbackEndOption == option {
+                                 Spacer()
+                                 Image(systemName: "checkmark")
+                             }
+                         }
+                     }
                     .keyboardShortcut(option == .stop ? "s" :
                                     option == .replay ? "l" : "n",
                                     modifiers: [.command])

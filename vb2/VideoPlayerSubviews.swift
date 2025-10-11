@@ -1,0 +1,197 @@
+//
+//  VideoPlayerSubviews.swift
+//  vb2
+//
+//  Created by Claude Wilder on 2025-10-06.
+//
+
+import SwiftUI
+
+// MARK: - Header View
+
+struct HeaderView: View {
+    let selectedFolder: URL?
+    
+    var body: some View {
+        VStack(spacing: 5) {
+            Text("Video Player")
+                .font(.title)
+                .padding(.top)
+            
+            if let folder = selectedFolder {
+                Text("Selected: \(folder.path)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+        }
+        .padding()
+    }
+}
+
+// MARK: - Empty State View
+
+struct EmptyStateView: View {
+    var body: some View {
+        Text("No video files found. Select a folder to begin.")
+            .foregroundColor(.secondary)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Video Content View
+
+struct VideoContentView: View {
+    @EnvironmentObject var viewModel: VideoPlayerViewModel
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            if let player = viewModel.player {
+                CustomVideoPlayerView(player: player)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .id(viewModel.currentIndex)
+            }
+            
+            VideoControlsView()
+        }
+    }
+}
+
+// MARK: - Video Controls View
+
+struct VideoControlsView: View {
+    @EnvironmentObject var viewModel: VideoPlayerViewModel
+    
+    var body: some View {
+        VStack(spacing: 10) {
+            VideoInfoView()
+            ProgressBarView()
+            NavigationButtonsView()
+        }
+        .background(Color(NSColor.controlBackgroundColor))
+    }
+}
+
+// MARK: - Video Info View
+
+struct VideoInfoView: View {
+    @EnvironmentObject var viewModel: VideoPlayerViewModel
+    
+    var body: some View {
+        VStack(spacing: 4) {
+            if !viewModel.videoFiles.isEmpty && viewModel.currentIndex < viewModel.videoFiles.count {
+                Text(viewModel.videoFiles[viewModel.currentIndex].name)
+                    .font(.headline)
+                    .lineLimit(1)
+                Text("Video \(viewModel.currentIndex + 1) of \(viewModel.videoFiles.count)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.top, 10)
+    }
+}
+
+// MARK: - Progress Bar View
+
+struct ProgressBarView: View {
+    @EnvironmentObject var viewModel: VideoPlayerViewModel
+    @State private var isDragging = false
+    
+    var progress: Double {
+        guard viewModel.duration > 0 else { return 0 }
+        return viewModel.currentTime / viewModel.duration
+    }
+    
+    var timeString: String {
+        let current = formatTime(viewModel.currentTime)
+        let total = formatTime(viewModel.duration)
+        return "\(current) / \(total)"
+    }
+    
+    var body: some View {
+        VStack(spacing: 4) {
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    // Background track
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(height: 6)
+                        .cornerRadius(3)
+                    
+                    // Progress fill
+                    Rectangle()
+                        .fill(Color.blue)
+                        .frame(width: geometry.size.width * progress, height: 6)
+                        .cornerRadius(3)
+                }
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            isDragging = true
+                            let percentage = max(0, min(1, value.location.x / geometry.size.width))
+                            viewModel.seek(to: percentage)
+                        }
+                        .onEnded { _ in
+                            isDragging = false
+                        }
+                )
+            }
+            .frame(height: 6)
+            
+            Text(timeString)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .padding(.horizontal, 20)
+    }
+    
+    private func formatTime(_ time: Double) -> String {
+        guard time.isFinite && time >= 0 else { return "0:00" }
+        let totalSeconds = Int(time)
+        let minutes = totalSeconds / 60
+        let seconds = totalSeconds % 60
+        return String(format: "%d:%02d", minutes, seconds)
+    }
+}
+
+// MARK: - Navigation Buttons View
+
+struct NavigationButtonsView: View {
+    @EnvironmentObject var viewModel: VideoPlayerViewModel
+    
+    var body: some View {
+        HStack(spacing: 20) {
+            Button(action: viewModel.playPrevious) {
+                Label("Previous", systemImage: "backward.fill")
+            }
+            .buttonStyle(.bordered)
+            
+            Button(action: viewModel.togglePlayPause) {
+                Label(viewModel.isPlaying ? "Pause" : "Play", systemImage: viewModel.isPlaying ? "pause.fill" : "play.fill")
+            }
+            .buttonStyle(.bordered)
+            
+            Button(action: viewModel.playRandom) {
+                Label("Random", systemImage: "shuffle")
+            }
+            .disabled(viewModel.videoFiles.count <= 1)
+            .buttonStyle(.bordered)
+            
+            Button(action: viewModel.playNext) {
+                Label("Next", systemImage: "forward.fill")
+            }
+            .buttonStyle(.bordered)
+        }
+        .padding(.bottom, 10)
+    }
+}
+
+// MARK: - Preview
+
+#Preview {
+    HeaderView(selectedFolder: nil)
+        .environmentObject(VideoPlayerViewModel())
+}
