@@ -13,20 +13,30 @@ struct HeaderView: View {
     let selectedFolder: URL?
     
     var body: some View {
-        VStack(spacing: 5) {
-            Text("Video Player")
-                .font(.title)
-                .padding(.top)
-            
+        HStack {
             if let folder = selectedFolder {
-                Text("Selected: \(folder.path)")
+                Text(folder.lastPathComponent)
+                    .font(.headline)
+                    .lineLimit(1)
+                
+                Text("•")
+                    .foregroundColor(.secondary)
+                
+                Text(folder.path)
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
+            } else {
+                Text("No folder selected")
+                    .font(.headline)
+                    .foregroundColor(.secondary)
             }
+            
+            Spacer()
         }
-        .padding()
+        .padding(.horizontal)
+        .padding(.vertical, 8)
     }
 }
 
