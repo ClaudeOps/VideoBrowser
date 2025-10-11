@@ -50,13 +50,16 @@ class VideoPlayerViewModel: ObservableObject {
     @Published var currentIndex = 0
     @Published var player: AVPlayer?
     @Published var isPlaying = true
-    @Published var selectedSort: SortOption = .random
+    @Published var selectedSort: SortOption = .fileName
     @Published var playbackEndOption: PlaybackEndOption = .playNext
     @Published var shouldSelectFolder = false
+    @Published var currentTime: Double = 0
+    @Published var duration: Double = 0
     
     private var isSorting = false
     private let fileManager = FileManager.default
     private let videoExtensions = ["mp4", "mov", "m4v", "3gp"]
+    private var timeObserver: Any?
     
     // MARK: - Public Methods
     
@@ -96,6 +99,10 @@ class VideoPlayerViewModel: ObservableObject {
         // Remove previous observer
         if let player = player {
             NotificationCenter.default.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: player.currentItem)
+            if let observer = timeObserver {
+                player.removeTimeObserver(observer)
+                timeObserver = nil
+            }
         }
         
         player?.pause()
@@ -110,8 +117,39 @@ class VideoPlayerViewModel: ObservableObject {
             self?.handleVideoEnd()
         }
         
+        // Add time observer for progress updates
+        let interval = CMTime(seconds: 0.1, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+        timeObserver = player?.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
+            self?.currentTime = time.seconds
+            if let duration = self?.player?.currentItem?.duration.seconds, duration.isFinite {
+                self?.duration = duration
+            }
+        }
+        
         player?.play()
         isPlaying = true
+    }
+    
+    func seek(to percentage: Double) {
+        guard let player = player, duration > 0 else { return }
+        let targetTime = duration * percentage
+        let cmTime = CMTime(seconds: targetTime, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+        player.seek(to: cmTime)
+    }
+    
+    func seekForward(seconds: Double) {
+        guard let player = player else { return }
+        let currentTime = player.currentTime()
+        let newTime = CMTimeAdd(currentTime, CMTime(seconds: seconds, preferredTimescale: CMTimeScale(NSEC_PER_SEC)))
+        player.seek(to: newTime)
+    }
+    
+    func seekBackward(seconds: Double) {
+        guard let player = player else { return }
+        let currentTime = player.currentTime()
+        let newTime = CMTimeSubtract(currentTime, CMTime(seconds: seconds, preferredTimescale: CMTimeScale(NSEC_PER_SEC)))
+        let zeroTime = CMTime.zero
+        player.seek(to: newTime > zeroTime ? newTime : zeroTime)
     }
     
     func playPrevious() {
@@ -410,6 +448,12 @@ struct VideoPlayerView: View {
             } else if characters == "m" {
                 viewModel.moveCurrentFile(to: "/Volumes/Seagate-8TB/USBDDP1/xxxxx/all/CIS/move")
                 return nil
+            } else if characters == "," {
+                viewModel.seekBackward(seconds: 10)
+                return nil
+            } else if characters == "." {
+                viewModel.seekForward(seconds: 15)
+                return nil
             }
         }
         return event
@@ -453,7 +497,7 @@ struct VideoContentView: View {
     var body: some View {
         VStack(spacing: 0) {
             if let player = viewModel.player {
-                CustomVideoPlayer(player: player)
+                VideoPlayer(player: player)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             
@@ -468,9 +512,72 @@ struct VideoControlsView: View {
     var body: some View {
         VStack(spacing: 10) {
             VideoInfoView()
+            ProgressBarView()
             NavigationButtonsView()
         }
         .background(Color(NSColor.controlBackgroundColor))
+    }
+}
+
+struct ProgressBarView: View {
+    @EnvironmentObject var viewModel: VideoPlayerViewModel
+    @State private var isDragging = false
+    
+    var progress: Double {
+        guard viewModel.duration > 0 else { return 0 }
+        return viewModel.currentTime / viewModel.duration
+    }
+    
+    var timeString: String {
+        let current = formatTime(viewModel.currentTime)
+        let total = formatTime(viewModel.duration)
+        return "\(current) / \(total)"
+    }
+    
+    var body: some View {
+        VStack(spacing: 4) {
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    // Background track
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(height: 6)
+                        .cornerRadius(3)
+                    
+                    // Progress fill
+                    Rectangle()
+                        .fill(Color.blue)
+                        .frame(width: geometry.size.width * progress, height: 6)
+                        .cornerRadius(3)
+                }
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            isDragging = true
+                            let percentage = max(0, min(1, value.location.x / geometry.size.width))
+                            viewModel.seek(to: percentage)
+                        }
+                        .onEnded { _ in
+                            isDragging = false
+                        }
+                )
+            }
+            .frame(height: 6)
+            
+            Text(timeString)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .padding(.horizontal, 20)
+    }
+    
+    private func formatTime(_ time: Double) -> String {
+        guard time.isFinite && time >= 0 else { return "0:00" }
+        let totalSeconds = Int(time)
+        let minutes = totalSeconds / 60
+        let seconds = totalSeconds % 60
+        return String(format: "%d:%02d", minutes, seconds)
     }
 }
 
@@ -517,31 +624,6 @@ struct NavigationButtonsView: View {
             .buttonStyle(.bordered)
         }
         .padding(.bottom, 10)
-    }
-}
-
-// MARK: - Custom Video Player
-
-struct CustomVideoPlayer: NSViewRepresentable {
-    let player: AVPlayer
-    
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView()
-        
-        let playerLayer = AVPlayerLayer(player: player)
-        playerLayer.videoGravity = .resizeAspect
-        playerLayer.autoresizingMask = [.layerWidthSizable, .layerHeightSizable]
-        
-        view.wantsLayer = true
-        view.layer = playerLayer
-        
-        return view
-    }
-    
-    func updateNSView(_ nsView: NSView, context: Context) {
-        if let playerLayer = nsView.layer as? AVPlayerLayer {
-            playerLayer.player = player
-        }
     }
 }
 

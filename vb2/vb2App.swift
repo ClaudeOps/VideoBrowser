@@ -20,7 +20,7 @@ struct vb2App: App {
         .commands {  // <-- Menu bar code starts here
             CommandGroup(replacing: .newItem) {
                 Button("Open Folder...") {
-                    viewModel.shouldSelectFolder = true
+                    viewModel.triggerFolderSelection()
                 }
                 .keyboardShortcut("o", modifiers: [.command])
             }
