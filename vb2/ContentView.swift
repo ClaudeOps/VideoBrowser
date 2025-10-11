@@ -452,7 +452,7 @@ struct VideoPlayerView: View {
                 viewModel.seekBackward(seconds: 10)
                 return nil
             } else if characters == "." {
-                viewModel.seekForward(seconds: 15)
+                viewModel.seekForward(seconds: 10)
                 return nil
             }
         }
@@ -497,12 +497,77 @@ struct VideoContentView: View {
     var body: some View {
         VStack(spacing: 0) {
             if let player = viewModel.player {
-                VideoPlayer(player: player)
+                CustomVideoPlayerView(player: player)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .id(viewModel.currentIndex) // Force recreation on video change
             }
             
             VideoControlsView()
         }
+    }
+}
+
+// Custom video player that avoids built-in controls
+struct CustomVideoPlayerView: NSViewRepresentable {
+    let player: AVPlayer
+    
+    func makeNSView(context: Context) -> PlayerContainerView {
+        let containerView = PlayerContainerView()
+        containerView.setupPlayer(player)
+        return containerView
+    }
+    
+    func updateNSView(_ nsView: PlayerContainerView, context: Context) {
+        nsView.updatePlayer(player)
+    }
+}
+
+class PlayerContainerView: NSView {
+    private var playerLayer: AVPlayerLayer?
+    
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = true
+        layer?.backgroundColor = NSColor.black.cgColor
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    func setupPlayer(_ player: AVPlayer) {
+        // Remove old layer if exists
+        playerLayer?.removeFromSuperlayer()
+        
+        // Create new player layer
+        let newPlayerLayer = AVPlayerLayer(player: player)
+        newPlayerLayer.videoGravity = .resizeAspect
+        newPlayerLayer.frame = bounds
+        
+        layer?.addSublayer(newPlayerLayer)
+        self.playerLayer = newPlayerLayer
+        
+        // Force initial layout
+        needsLayout = true
+        layoutSubtreeIfNeeded()
+    }
+    
+    func updatePlayer(_ player: AVPlayer) {
+        if playerLayer?.player !== player {
+            setupPlayer(player)
+        }
+    }
+    
+    override func layout() {
+        super.layout()
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        playerLayer?.frame = bounds
+        CATransaction.commit()
+    }
+    
+    override var acceptsFirstResponder: Bool {
+        return false
     }
 }
 
@@ -586,12 +651,14 @@ struct VideoInfoView: View {
     
     var body: some View {
         VStack(spacing: 4) {
-            Text(viewModel.videoFiles[viewModel.currentIndex].name)
-                .font(.headline)
-                .lineLimit(1)
-            Text("Video \(viewModel.currentIndex + 1) of \(viewModel.videoFiles.count)")
-                .font(.caption)
-                .foregroundColor(.secondary)
+            if !viewModel.videoFiles.isEmpty && viewModel.currentIndex < viewModel.videoFiles.count {
+                Text(viewModel.videoFiles[viewModel.currentIndex].name)
+                    .font(.headline)
+                    .lineLimit(1)
+                Text("Video \(viewModel.currentIndex + 1) of \(viewModel.videoFiles.count)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
         }
         .padding(.top, 10)
     }
