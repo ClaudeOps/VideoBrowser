@@ -39,3 +39,15 @@ struct VideoFile: Identifiable {
         url.path
     }
 }
+
+// MARK: - Settings Model
+
+struct AppSettings {
+    var seekForwardSeconds: Double
+    var seekBackwardSeconds: Double
+    
+    static let defaultSettings = AppSettings(
+        seekForwardSeconds: 10,
+        seekBackwardSeconds: 10
+    )
+}

@@ -8,9 +8,7 @@
 import SwiftUI
 import AVKit
 import Combine
-
-
-// MARK: - ViewModel
+import Foundation
 
 class VideoPlayerViewModel: ObservableObject {
     // Published state
@@ -20,16 +18,95 @@ class VideoPlayerViewModel: ObservableObject {
     @Published var currentIndex = 0
     @Published var player: AVPlayer?
     @Published var isPlaying = true
-    @Published var selectedSort: SortOption = .fileName
-    @Published var playbackEndOption: PlaybackEndOption = .playNext
+    @Published var selectedSort: SortOption = .fileName {
+        didSet {
+            savePreferences()
+        }
+    }
+    @Published var playbackEndOption: PlaybackEndOption = .playNext {
+        didSet {
+            savePreferences()
+        }
+    }
     @Published var shouldSelectFolder = false
     @Published var currentTime: Double = 0
     @Published var duration: Double = 0
+    @Published var showingSettings = false
+    @Published var settings = AppSettings.defaultSettings {
+        didSet {
+            savePreferences()
+        }
+    }
     
     private var isSorting = false
     private let fileManager = FileManager.default
     private let videoExtensions = ["mp4", "mov", "m4v", "3gp"]
     private var timeObserver: Any?
+    private var currentScanID = UUID()
+    
+    // MARK: - Initialization
+    
+    init() {
+        loadPreferences()
+    }
+    
+    // MARK: - User Defaults Keys
+    
+    private enum PreferenceKeys {
+        static let selectedSort = "selectedSort"
+        static let playbackEndOption = "playbackEndOption"
+        static let lastFolder = "lastFolder"
+        static let seekForwardSeconds = "seekForwardSeconds"
+        static let seekBackwardSeconds = "seekBackwardSeconds"
+    }
+    
+    // MARK: - Preferences
+    
+    private func savePreferences() {
+        UserDefaults.standard.set(selectedSort.rawValue, forKey: PreferenceKeys.selectedSort)
+        UserDefaults.standard.set(playbackEndOption.rawValue, forKey: PreferenceKeys.playbackEndOption)
+        if let folderPath = selectedFolder?.path {
+            UserDefaults.standard.set(folderPath, forKey: PreferenceKeys.lastFolder)
+        }
+        UserDefaults.standard.set(settings.seekForwardSeconds, forKey: PreferenceKeys.seekForwardSeconds)
+        UserDefaults.standard.set(settings.seekBackwardSeconds, forKey: PreferenceKeys.seekBackwardSeconds)
+    }
+    
+    private func loadPreferences() {
+        // Load sort option
+        if let sortValue = UserDefaults.standard.string(forKey: PreferenceKeys.selectedSort),
+           let sort = SortOption(rawValue: sortValue) {
+            selectedSort = sort
+        }
+        
+        // Load playback end option
+        if let playbackValue = UserDefaults.standard.string(forKey: PreferenceKeys.playbackEndOption),
+           let playback = PlaybackEndOption(rawValue: playbackValue) {
+            playbackEndOption = playback
+        }
+        
+        // Load last folder (but don't automatically open it)
+        if let folderPath = UserDefaults.standard.string(forKey: PreferenceKeys.lastFolder) {
+            let folderURL = URL(fileURLWithPath: folderPath)
+            // Only restore if the folder still exists
+            if fileManager.fileExists(atPath: folderPath) {
+                selectedFolder = folderURL
+                // Optionally auto-scan on launch
+                // scanForVideoFiles(in: folderURL)
+            }
+        }
+        
+        // Load seek times
+        let seekForward = UserDefaults.standard.double(forKey: PreferenceKeys.seekForwardSeconds)
+        let seekBackward = UserDefaults.standard.double(forKey: PreferenceKeys.seekBackwardSeconds)
+        
+        if seekForward > 0 {
+            settings.seekForwardSeconds = seekForward
+        }
+        if seekBackward > 0 {
+            settings.seekBackwardSeconds = seekBackward
+        }
+    }
     
     // MARK: - Public Methods
     
@@ -47,6 +124,7 @@ class VideoPlayerViewModel: ObservableObject {
         panel.begin { [weak self] response in
             guard let self = self, response == .OK, let url = panel.url else { return }
             self.selectedFolder = url
+            self.savePreferences() // Save the newly selected folder
             self.scanForVideoFiles(in: url)
         }
     }
@@ -100,28 +178,6 @@ class VideoPlayerViewModel: ObservableObject {
         isPlaying = true
     }
     
-    func seek(to percentage: Double) {
-        guard let player = player, duration > 0 else { return }
-        let targetTime = duration * percentage
-        let cmTime = CMTime(seconds: targetTime, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
-        player.seek(to: cmTime)
-    }
-    
-    func seekForward(seconds: Double) {
-        guard let player = player else { return }
-        let currentTime = player.currentTime()
-        let newTime = CMTimeAdd(currentTime, CMTime(seconds: seconds, preferredTimescale: CMTimeScale(NSEC_PER_SEC)))
-        player.seek(to: newTime)
-    }
-    
-    func seekBackward(seconds: Double) {
-        guard let player = player else { return }
-        let currentTime = player.currentTime()
-        let newTime = CMTimeSubtract(currentTime, CMTime(seconds: seconds, preferredTimescale: CMTimeScale(NSEC_PER_SEC)))
-        let zeroTime = CMTime.zero
-        player.seek(to: newTime > zeroTime ? newTime : zeroTime)
-    }
-    
     func playPrevious() {
         guard !videoFiles.isEmpty else { return }
         
@@ -163,6 +219,28 @@ class VideoPlayerViewModel: ObservableObject {
             player.play()
             isPlaying = true
         }
+    }
+    
+    func seek(to percentage: Double) {
+        guard let player = player, duration > 0 else { return }
+        let targetTime = duration * percentage
+        let cmTime = CMTime(seconds: targetTime, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+        player.seek(to: cmTime)
+    }
+    
+    func seekForward(seconds: Double) {
+        guard let player = player else { return }
+        let currentTime = player.currentTime()
+        let newTime = CMTimeAdd(currentTime, CMTime(seconds: settings.seekForwardSeconds, preferredTimescale: CMTimeScale(NSEC_PER_SEC)))
+        player.seek(to: newTime)
+    }
+    
+    func seekBackward(seconds: Double) {
+        guard let player = player else { return }
+        let currentTime = player.currentTime()
+        let newTime = CMTimeSubtract(currentTime, CMTime(seconds: settings.seekBackwardSeconds, preferredTimescale: CMTimeScale(NSEC_PER_SEC)))
+        let zeroTime = CMTime.zero
+        player.seek(to: newTime > zeroTime ? newTime : zeroTime)
     }
     
     func moveCurrentFile(to destinationPath: String) {
@@ -227,14 +305,23 @@ class VideoPlayerViewModel: ObservableObject {
     // MARK: - Private Methods
     
     private func scanForVideoFiles(in directory: URL) {
+        // Generate a new scan ID to invalidate previous scans
+        let scanID = UUID()
+        currentScanID = scanID
+        
         isScanning = true
         videoFiles.removeAll()
         player?.pause()
         player = nil
         currentIndex = 0
+        currentTime = 0
+        duration = 0
         
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else { return }
+            
+            // Check if this scan is still valid
+            guard scanID == self.currentScanID else { return }
             
             guard let enumerator = self.fileManager.enumerator(
                 at: directory,
@@ -242,7 +329,9 @@ class VideoPlayerViewModel: ObservableObject {
                 options: [.skipsHiddenFiles]
             ) else {
                 DispatchQueue.main.async {
-                    self.isScanning = false
+                    if scanID == self.currentScanID {
+                        self.isScanning = false
+                    }
                 }
                 return
             }
@@ -250,6 +339,9 @@ class VideoPlayerViewModel: ObservableObject {
             var foundFiles: [VideoFile] = []
             
             for case let fileURL as URL in enumerator {
+                // Check if this scan has been superseded
+                guard scanID == self.currentScanID else { return }
+                
                 do {
                     let resourceValues = try fileURL.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
                     
@@ -265,12 +357,19 @@ class VideoPlayerViewModel: ObservableObject {
                 }
             }
             
+            // Check again before sorting
+            guard scanID == self.currentScanID else { return }
+            
             foundFiles.sort { $0.path < $1.path }
             
             DispatchQueue.main.async {
+                // Final check before updating UI
+                guard scanID == self.currentScanID else { return }
+                
                 self.videoFiles = foundFiles
                 self.isScanning = false
-                self.selectedSort = .fileName
+                // Don't reset selectedSort - use the current preference
+                self.applySorting() // Apply the user's preferred sort
                 
                 if !foundFiles.isEmpty {
                     self.playVideo(at: 0)
@@ -353,6 +452,3 @@ class VideoPlayerViewModel: ObservableObject {
         }
     }
 }
-
-
-

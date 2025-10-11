@@ -35,6 +35,10 @@ struct VideoPlayerView: View {
         .onAppear {
             setupKeyboardHandling()
         }
+        .sheet(isPresented: $viewModel.showingSettings) {
+            SettingsView()
+                .environmentObject(viewModel)
+        }
     }
     
     private func setupKeyboardHandling() {

@@ -24,6 +24,14 @@ struct vb2App: App {
                 }
                 .keyboardShortcut("o", modifiers: [.command])
             }
+            
+            CommandGroup(after: .appSettings) {
+                Button("Settings...") {
+                    viewModel.showingSettings = true
+                }
+                .keyboardShortcut(",", modifiers: [.command])
+            }
+            
             CommandMenu("Sort") {
                 ForEach(SortOption.allCases, id: \.self) { option in
                     Button(action: {
@@ -43,6 +51,7 @@ struct vb2App: App {
                                     option == .sizeDescending ? "4" : "5")
                 }
             }
+            
             CommandMenu("Playback") {
                 ForEach(PlaybackEndOption.allCases, id: \.self) { option in
                     Button(action: {
