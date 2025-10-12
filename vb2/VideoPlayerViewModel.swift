@@ -32,7 +32,7 @@ class VideoPlayerViewModel: ObservableObject {
     @Published var currentTime: Double = 0
     @Published var duration: Double = 0
     @Published var showingSettings = false
-    @Published var isMuted = true {
+    @Published var isMuted = false {
         didSet {
             player?.isMuted = isMuted
         }

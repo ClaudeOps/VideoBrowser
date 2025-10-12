@@ -174,6 +174,7 @@ struct NavigationButtonsView: View {
     
     var body: some View {
         HStack(spacing: 20) {
+            Spacer()
             // Left side - playback controls
             HStack(spacing: 20) {
                 Button(action: viewModel.playPrevious) {
@@ -214,6 +215,6 @@ struct NavigationButtonsView: View {
 // MARK: - Preview
 
 #Preview {
-    HeaderView(selectedFolder: nil)
+    NavigationButtonsView()
         .environmentObject(VideoPlayerViewModel())
 }
