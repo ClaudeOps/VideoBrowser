@@ -174,27 +174,39 @@ struct NavigationButtonsView: View {
     
     var body: some View {
         HStack(spacing: 20) {
-            Button(action: viewModel.playPrevious) {
-                Label("Previous", systemImage: "backward.fill")
+            // Left side - playback controls
+            HStack(spacing: 20) {
+                Button(action: viewModel.playPrevious) {
+                    Label("Previous", systemImage: "backward.fill")
+                }
+                .buttonStyle(.bordered)
+                
+                Button(action: viewModel.togglePlayPause) {
+                    Label(viewModel.isPlaying ? "Pause" : "Play", systemImage: viewModel.isPlaying ? "pause.fill" : "play.fill")
+                }
+                .buttonStyle(.bordered)
+                
+                Button(action: viewModel.playRandom) {
+                    Label("Random", systemImage: "shuffle")
+                }
+                .disabled(viewModel.videoFiles.count <= 1)
+                .buttonStyle(.bordered)
+                
+                Button(action: viewModel.playNext) {
+                    Label("Next", systemImage: "forward.fill")
+                }
+                .buttonStyle(.bordered)
             }
-            .buttonStyle(.bordered)
             
-            Button(action: viewModel.togglePlayPause) {
-                Label(viewModel.isPlaying ? "Pause" : "Play", systemImage: viewModel.isPlaying ? "pause.fill" : "play.fill")
-            }
-            .buttonStyle(.bordered)
+            Spacer()
             
-            Button(action: viewModel.playRandom) {
-                Label("Random", systemImage: "shuffle")
-            }
-            .disabled(viewModel.videoFiles.count <= 1)
-            .buttonStyle(.bordered)
-            
-            Button(action: viewModel.playNext) {
-                Label("Next", systemImage: "forward.fill")
+            // Right side - mute button
+            Button(action: viewModel.toggleMute) {
+                Label(viewModel.isMuted ? "Unmute" : "Mute", systemImage: viewModel.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
             }
             .buttonStyle(.bordered)
         }
+        .padding(.horizontal, 20)
         .padding(.bottom, 10)
     }
 }

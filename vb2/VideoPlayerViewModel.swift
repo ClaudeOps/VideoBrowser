@@ -32,6 +32,11 @@ class VideoPlayerViewModel: ObservableObject {
     @Published var currentTime: Double = 0
     @Published var duration: Double = 0
     @Published var showingSettings = false
+    @Published var isMuted = true {
+        didSet {
+            player?.isMuted = isMuted
+        }
+    }
     @Published var settings = AppSettings.defaultSettings {
         didSet {
             savePreferences()
@@ -176,6 +181,7 @@ class VideoPlayerViewModel: ObservableObject {
         
         player?.play()
         isPlaying = true
+        player?.isMuted = isMuted
     }
     
     func playPrevious() {
@@ -219,6 +225,10 @@ class VideoPlayerViewModel: ObservableObject {
             player.play()
             isPlaying = true
         }
+    }
+    
+    func toggleMute() {
+        isMuted.toggle()
     }
     
     func seek(to percentage: Double) {
