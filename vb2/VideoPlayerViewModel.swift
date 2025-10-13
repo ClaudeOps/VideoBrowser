@@ -35,6 +35,7 @@ class VideoPlayerViewModel: ObservableObject {
     @Published var isMuted = false {
         didSet {
             player?.isMuted = isMuted
+            savePreferences()
         }
     }
     @Published var settings = AppSettings.defaultSettings {
@@ -55,6 +56,14 @@ class VideoPlayerViewModel: ObservableObject {
         loadPreferences()
     }
     
+    deinit {
+        // Clean up observers
+        if let player = player, let observer = timeObserver {
+            player.removeTimeObserver(observer)
+        }
+        NotificationCenter.default.removeObserver(self)
+    }
+    
     // MARK: - User Defaults Keys
     
     private enum PreferenceKeys {
@@ -63,6 +72,7 @@ class VideoPlayerViewModel: ObservableObject {
         static let lastFolder = "lastFolder"
         static let seekForwardSeconds = "seekForwardSeconds"
         static let seekBackwardSeconds = "seekBackwardSeconds"
+        static let isMuted = "isMuted"
     }
     
     // MARK: - Preferences
@@ -75,6 +85,7 @@ class VideoPlayerViewModel: ObservableObject {
         }
         UserDefaults.standard.set(settings.seekForwardSeconds, forKey: PreferenceKeys.seekForwardSeconds)
         UserDefaults.standard.set(settings.seekBackwardSeconds, forKey: PreferenceKeys.seekBackwardSeconds)
+        UserDefaults.standard.set(isMuted, forKey: PreferenceKeys.isMuted)
     }
     
     private func loadPreferences() {
@@ -111,6 +122,9 @@ class VideoPlayerViewModel: ObservableObject {
         if seekBackward > 0 {
             settings.seekBackwardSeconds = seekBackward
         }
+        
+        // Load mute state
+        isMuted = UserDefaults.standard.bool(forKey: PreferenceKeys.isMuted)
     }
     
     // MARK: - Public Methods

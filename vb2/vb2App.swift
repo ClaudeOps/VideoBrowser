@@ -1,5 +1,5 @@
 //
-//  vb2App.swift
+//  VideoFinderApp.swift
 //  vb2
 //
 //  Created by Claude Wilder on 2025-10-06.
@@ -10,12 +10,15 @@ import SwiftUI
 @main
 struct vb2App: App {
     @StateObject private var viewModel = VideoPlayerViewModel()
-
     
     var body: some Scene {
         WindowGroup {
             VideoPlayerView()
                 .environmentObject(viewModel)
+                .sheet(isPresented: $viewModel.showingSettings) {
+                    SettingsView()
+                        .environmentObject(viewModel)
+                }
         }
         .commands {  // <-- Menu bar code starts here
             CommandGroup(replacing: .newItem) {
@@ -29,22 +32,22 @@ struct vb2App: App {
                 Button("Settings...") {
                     viewModel.showingSettings = true
                 }
-                .keyboardShortcut(",", modifiers: [.command])
+                .keyboardShortcut("s", modifiers: [.command, .shift])
             }
             
             CommandMenu("Sort") {
                 ForEach(SortOption.allCases, id: \.self) { option in
                     Button(action: {
-                         viewModel.setSortOption(option)
-                     }) {
-                         HStack {
-                             Text(option.rawValue)
-                             if viewModel.selectedSort == option {
-                                 Spacer()
-                                 Image(systemName: "checkmark")
-                             }
-                         }
-                     }
+                        viewModel.setSortOption(option)
+                    }) {
+                        HStack {
+                            Text(option.rawValue)
+                            if viewModel.selectedSort == option {
+                                Spacer()
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
                     .keyboardShortcut(option == .fileName ? "1" :
                                     option == .filePath ? "2" :
                                     option == .sizeAscending ? "3" :
@@ -55,16 +58,16 @@ struct vb2App: App {
             CommandMenu("Playback") {
                 ForEach(PlaybackEndOption.allCases, id: \.self) { option in
                     Button(action: {
-                         viewModel.setPlaybackEndOption(option)
-                     }) {
-                         HStack {
-                             Text(option.rawValue)
-                             if viewModel.playbackEndOption == option {
-                                 Spacer()
-                                 Image(systemName: "checkmark")
-                             }
-                         }
-                     }
+                        viewModel.setPlaybackEndOption(option)
+                    }) {
+                        HStack {
+                            Text(option.rawValue)
+                            if viewModel.playbackEndOption == option {
+                                Spacer()
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
                     .keyboardShortcut(option == .stop ? "s" :
                                     option == .replay ? "l" : "n",
                                     modifiers: [.command])
