@@ -37,6 +37,23 @@
 		19C951162E9BEF5600262368 /* vb22Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = vb22Tests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		19C951272E9C855D00262368 /* Exceptions for "vb2UITests" folder in "vb2" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"test-readme.md",
+			);
+			target = 19821DF82E947D2A00123734 /* vb2 */;
+		};
+		19C951282E9C855D00262368 /* Exceptions for "vb2UITests" folder in "vb2UITests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"test-readme.md",
+			);
+			target = 19821E0F2E947D2B00123734 /* vb2UITests */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		19821DFB2E947D2A00123734 /* vb2 */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
@@ -50,6 +67,10 @@
 		};
 		19821E132E947D2B00123734 /* vb2UITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				19C951272E9C855D00262368 /* Exceptions for "vb2UITests" folder in "vb2" target */,
+				19C951282E9C855D00262368 /* Exceptions for "vb2UITests" folder in "vb2UITests" target */,
+			);
 			path = vb2UITests;
 			sourceTree = "<group>";
 		};

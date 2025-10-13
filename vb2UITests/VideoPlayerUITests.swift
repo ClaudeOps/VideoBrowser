@@ -89,51 +89,20 @@ final class VideoPlayerUITests: XCTestCase {
     // MARK: - Settings Tests
     
     func testOpenSettings() {
-        // Try clicking the menu item directly instead of keyboard shortcut
-        let menuBar = app.menuBars
+        // Try keyboard shortcut (⌘⇧S)
+        app.typeKey("s", modifierFlags: [.command, .shift])
         
-        // First try to find the app menu or settings menu
-        // In macOS, Settings is typically in the app menu (first menu item)
-        let appMenu = menuBar.menuBarItems.element(boundBy: 0)
-        appMenu.click()
+        let settingsTitle = app.staticTexts["Settings"]
+        XCTAssertTrue(settingsTitle.waitForExistence(timeout: 2), "Settings sheet should open")
         
-        // Look for Settings menu item
-        let settingsMenuItem = app.menuItems["Settings..."]
-        
-        // If found, click it
-        if settingsMenuItem.exists {
-            settingsMenuItem.click()
-            
-            let settingsTitle = app.staticTexts["Settings"]
-            XCTAssertTrue(settingsTitle.waitForExistence(timeout: 2), "Settings sheet should open")
-            
-            // Close settings
-            app.buttons["Done"].click()
-            XCTAssertFalse(settingsTitle.exists, "Settings sheet should close")
-        } else {
-            // If not found in app menu, try keyboard shortcut
-            app.typeKey(",", modifierFlags: .command)
-            
-            let settingsTitle = app.staticTexts["Settings"]
-            XCTAssertTrue(settingsTitle.waitForExistence(timeout: 2), "Settings sheet should open with keyboard shortcut")
-            
-            // Close with Escape
-            app.typeKey(XCUIKeyboardKey.escape, modifierFlags: [])
-        }
+        // Close settings
+        app.buttons["Done"].click()
+        XCTAssertFalse(settingsTitle.exists, "Settings sheet should close")
     }
     
     func testSettingsContainsSeekSliders() {
-        // Open settings via menu
-        let menuBar = app.menuBars
-        let appMenu = menuBar.menuBarItems.element(boundBy: 0)
-        appMenu.click()
-        
-        let settingsMenuItem = app.menuItems["Settings..."]
-        if settingsMenuItem.exists {
-            settingsMenuItem.click()
-        } else {
-            app.typeKey(",", modifierFlags: .command)
-        }
+        // Open settings
+        app.typeKey("s", modifierFlags: [.command, .shift])
         
         // Wait for sheet to appear
         let settingsTitle = app.staticTexts["Settings"]
@@ -156,16 +125,7 @@ final class VideoPlayerUITests: XCTestCase {
     
     func testSettingsKeyboardShortcutsReference() {
         // Open settings
-        let menuBar = app.menuBars
-        let appMenu = menuBar.menuBarItems.element(boundBy: 0)
-        appMenu.click()
-        
-        let settingsMenuItem = app.menuItems["Settings..."]
-        if settingsMenuItem.exists {
-            settingsMenuItem.click()
-        } else {
-            app.typeKey(",", modifierFlags: .command)
-        }
+        app.typeKey("s", modifierFlags: [.command, .shift])
         
         // Wait for sheet
         let settingsTitle = app.staticTexts["Settings"]
@@ -187,7 +147,7 @@ final class VideoPlayerUITests: XCTestCase {
     
     func testSettingsKeyboardShortcut() {
         // Test ⌘,
-        app.typeKey(",", modifierFlags: .command)
+        app.typeKey("s", modifierFlags: [.shift, .command])
         
         let settingsTitle = app.staticTexts["Settings"]
         XCTAssertTrue(settingsTitle.waitForExistence(timeout: 2), "⌘, should open settings")
@@ -231,7 +191,7 @@ final class VideoPlayerUITests: XCTestCase {
     
     func testAccessibilityLabels() {
         // Open settings to test accessible elements
-        app.typeKey(",", modifierFlags: .command)
+        app.typeKey("s", modifierFlags: [.shift, .command])
         
         let doneButton = app.buttons["Done"]
         XCTAssertTrue(doneButton.exists, "Done button should be accessible")
