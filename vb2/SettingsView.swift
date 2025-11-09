@@ -37,7 +37,10 @@ struct SettingsView: View {
                         Text("Seek Forward:")
                             .frame(width: 120, alignment: .leading)
                         
-                        Slider(value: $viewModel.settings.seekForwardSeconds, in: 1...60, step: 1)
+                        Slider(value: Binding(
+                            get: { viewModel.settings.seekForwardSeconds },
+                            set: { viewModel.settings.seekForwardSeconds = ValidationHelper.sanitizeSeekTime($0) }
+                        ), in: 1...60, step: 1)
                         
                         Text("\(Int(viewModel.settings.seekForwardSeconds))s")
                             .frame(width: 40, alignment: .trailing)
@@ -48,7 +51,10 @@ struct SettingsView: View {
                         Text("Seek Backward:")
                             .frame(width: 120, alignment: .leading)
                         
-                        Slider(value: $viewModel.settings.seekBackwardSeconds, in: 1...60, step: 1)
+                        Slider(value: Binding(
+                            get: { viewModel.settings.seekBackwardSeconds },
+                            set: { viewModel.settings.seekBackwardSeconds = ValidationHelper.sanitizeSeekTime($0) }
+                        ), in: 1...60, step: 1)
                         
                         Text("\(Int(viewModel.settings.seekBackwardSeconds))s")
                             .frame(width: 40, alignment: .trailing)

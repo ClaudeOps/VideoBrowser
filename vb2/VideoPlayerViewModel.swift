@@ -43,6 +43,8 @@ class VideoPlayerViewModel: ObservableObject {
             savePreferences()
         }
     }
+    @Published var errorMessage: String?
+    @Published var showingError = false
     
     private var isSorting = false
     private let fileManager = FileManager.default
@@ -154,9 +156,19 @@ class VideoPlayerViewModel: ObservableObject {
         
         panel.begin { [weak self] response in
             guard let self = self, response == .OK, let url = panel.url else { return }
-            self.selectedFolder = url
-            self.savePreferences() // Save the newly selected folder
-            self.scanForVideoFiles(in: url)
+            
+            AppLogger.logInfo("User selected folder: \(url.path)", category: AppLogger.scan)
+            
+            // Validate folder before scanning
+            do {
+                try ValidationHelper.validateFolder(at: url)
+                self.selectedFolder = url
+                self.savePreferences()
+                self.scanForVideoFiles(in: url)
+            } catch {
+                AppLogger.logError(error, category: AppLogger.scan)
+                self.showError(error)
+            }
         }
     }
     
@@ -292,15 +304,22 @@ class VideoPlayerViewModel: ObservableObject {
         let fileName = fileURL.lastPathComponent
         let destinationURL = URL(fileURLWithPath: destinationPath).appendingPathComponent(fileName)
         
+        AppLogger.logInfo("Attempting to move file: \(fileName) to \(destinationPath)", category: AppLogger.fileOps)
+        
         do {
-            if !fileManager.fileExists(atPath: destinationPath) {
-                print("Destination directory does not exist: \(destinationPath)")
-                return
+            // Validate destination
+            try ValidationHelper.validateDestination(path: destinationPath)
+            
+            // Validate path security
+            guard ValidationHelper.isSecurePath(destinationURL) else {
+                throw VideoPlayerError.fileMoveFailedPermission(fileName)
             }
             
             pausePlayback()
             try fileManager.moveItem(at: fileURL, to: destinationURL)
             videoFiles.remove(at: currentIndex)
+            
+            AppLogger.logInfo("Successfully moved file: \(fileName)", category: AppLogger.fileOps)
             
             if videoFiles.isEmpty {
                 player = nil
@@ -311,10 +330,13 @@ class VideoPlayerViewModel: ObservableObject {
             } else {
                 playVideo(at: currentIndex)
             }
-            
-            print("Moved file to: \(destinationURL.path)")
+        } catch let error as VideoPlayerError {
+            AppLogger.logError(error, category: AppLogger.fileOps)
+            showError(error)
         } catch {
-            print("Error moving file: \(error.localizedDescription)")
+            let wrappedError = VideoPlayerError.fileMoveFailedUnknown(fileName, error)
+            AppLogger.logError(wrappedError, category: AppLogger.fileOps)
+            showError(wrappedError)
         }
     }
     
@@ -322,11 +344,16 @@ class VideoPlayerViewModel: ObservableObject {
         guard currentIndex < videoFiles.count else { return }
         
         let fileURL = videoFiles[currentIndex].url
+        let fileName = fileURL.lastPathComponent
+        
+        AppLogger.logInfo("Attempting to trash file: \(fileName)", category: AppLogger.fileOps)
         
         do {
             pausePlayback()
             try fileManager.trashItem(at: fileURL, resultingItemURL: nil)
             videoFiles.remove(at: currentIndex)
+            
+            AppLogger.logInfo("Successfully trashed file: \(fileName)", category: AppLogger.fileOps)
             
             if videoFiles.isEmpty {
                 player = nil
@@ -337,10 +364,10 @@ class VideoPlayerViewModel: ObservableObject {
             } else {
                 playVideo(at: currentIndex)
             }
-            
-            print("Moved file to trash: \(fileURL.lastPathComponent)")
         } catch {
-            print("Error moving file to trash: \(error.localizedDescription)")
+            let wrappedError = VideoPlayerError.fileDeleteFailed(fileName, error)
+            AppLogger.logError(wrappedError, category: AppLogger.fileOps)
+            showError(wrappedError)
         }
     }
     
@@ -350,6 +377,8 @@ class VideoPlayerViewModel: ObservableObject {
         // Generate a new scan ID to invalidate previous scans
         let scanID = UUID()
         currentScanID = scanID
+        
+        AppLogger.logInfo("Starting scan of directory: \(directory.path)", category: AppLogger.scan)
         
         isScanning = true
         videoFiles.removeAll()
@@ -363,7 +392,10 @@ class VideoPlayerViewModel: ObservableObject {
             guard let self = self else { return }
             
             // Check if this scan is still valid
-            guard scanID == self.currentScanID else { return }
+            guard scanID == self.currentScanID else {
+                AppLogger.logInfo("Scan cancelled (superseded)", category: AppLogger.scan)
+                return
+            }
             
             guard let enumerator = self.fileManager.enumerator(
                 at: directory,
@@ -373,6 +405,9 @@ class VideoPlayerViewModel: ObservableObject {
                 DispatchQueue.main.async {
                     if scanID == self.currentScanID {
                         self.isScanning = false
+                        let error = VideoPlayerError.folderAccessDenied(directory.path)
+                        AppLogger.logError(error, category: AppLogger.scan)
+                        self.showError(error)
                     }
                 }
                 return
@@ -384,18 +419,20 @@ class VideoPlayerViewModel: ObservableObject {
                 // Check if this scan has been superseded
                 guard scanID == self.currentScanID else { return }
                 
+                // Validate file extension
+                guard ValidationHelper.isValidVideoExtension(fileURL) else {
+                    continue
+                }
+                
                 do {
                     let resourceValues = try fileURL.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
                     
                     if resourceValues.isRegularFile == true {
-                        let fileExtension = fileURL.pathExtension.lowercased()
-                        if self.videoExtensions.contains(fileExtension) {
-                            let size = resourceValues.fileSize.map { Int64($0) } ?? 0
-                            foundFiles.append(VideoFile(url: fileURL, size: size))
-                        }
+                        let size = resourceValues.fileSize.map { Int64($0) } ?? 0
+                        foundFiles.append(VideoFile(url: fileURL, size: size))
                     }
                 } catch {
-                    print("Error checking file: \(error)")
+                    AppLogger.logWarning("Skipping file \(fileURL.lastPathComponent): \(error.localizedDescription)", category: AppLogger.scan)
                 }
             }
             
@@ -404,20 +441,35 @@ class VideoPlayerViewModel: ObservableObject {
             
             foundFiles.sort { $0.path < $1.path }
             
+            AppLogger.logInfo("Scan complete. Found \(foundFiles.count) video files", category: AppLogger.scan)
+            
             DispatchQueue.main.async {
                 // Final check before updating UI
                 guard scanID == self.currentScanID else { return }
                 
                 self.videoFiles = foundFiles
                 self.isScanning = false
-                // Don't reset selectedSort - use the current preference
-                self.applySorting() // Apply the user's preferred sort
                 
-                if !foundFiles.isEmpty {
+                if foundFiles.isEmpty {
+                    let error = VideoPlayerError.noVideosFound
+                    AppLogger.logWarning("No videos found in directory", category: AppLogger.scan)
+                    self.showError(error)
+                } else {
+                    // Apply the user's preferred sort
+                    self.applySorting()
                     self.playVideo(at: 0)
                 }
             }
         }
+    }
+    
+    private func showError(_ error: Error) {
+        if let videoError = error as? VideoPlayerError {
+            errorMessage = videoError.errorDescription
+        } else {
+            errorMessage = error.localizedDescription
+        }
+        showingError = true
     }
     
     private func handleVideoEnd() {

@@ -40,6 +40,11 @@ struct VideoPlayerView: View {
         .onDisappear {
             viewModel.player?.pause()
         }
+        .alert("Error", isPresented: $viewModel.showingError, presenting: viewModel.errorMessage) { _ in
+            Button("OK", role: .cancel) { }
+        } message: { message in
+            Text(message)
+        }
     }
     
     private func setupWindowObservers() {
