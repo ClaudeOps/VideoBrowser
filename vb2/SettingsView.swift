@@ -33,6 +33,47 @@ struct SettingsView: View {
             // Settings Content
             Form {
                 Section {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Move Destination:")
+                                .frame(width: 120, alignment: .leading)
+                            
+                            Button("Choose Folder...") {
+                                viewModel.selectMoveLocation()
+                            }
+                        }
+                        
+                        if let path = viewModel.settings.moveLocationPath {
+                            HStack {
+                                Text(path)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(2)
+                                    .truncationMode(.middle)
+                                
+                                Spacer()
+                                
+                                Button(action: {
+                                    viewModel.settings.moveLocationPath = nil
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                                .help("Clear move location")
+                            }
+                        } else {
+                            Text("No destination set - 'M' key will be disabled")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                        }
+                    }
+                } header: {
+                    Text("File Management")
+                        .font(.headline)
+                }
+                
+                Section {
                     HStack {
                         Text("Seek Forward:")
                             .frame(width: 120, alignment: .leading)
@@ -83,7 +124,14 @@ struct SettingsView: View {
                         KeyboardShortcutRow(key: "←", description: "Previous video")
                         KeyboardShortcutRow(key: "→", description: "Next video")
                         KeyboardShortcutRow(key: "R", description: "Random video")
-                        KeyboardShortcutRow(key: "M", description: "Move file")
+                        HStack {
+                            KeyboardShortcutRow(key: "M", description: "Move file to destination")
+                            if viewModel.settings.moveLocationPath == nil {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundColor(.orange)
+                                    .help("Set move location first")
+                            }
+                        }
                         KeyboardShortcutRow(key: "Delete", description: "Move to trash")
                     }
                 } header: {
@@ -107,7 +155,7 @@ struct SettingsView: View {
             }
             .padding()
         }
-        .frame(width: 500, height: 450)
+        .frame(width: 500, height: 550)
     }
 }
 

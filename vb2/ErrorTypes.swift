@@ -55,7 +55,7 @@ enum VideoPlayerError: LocalizedError {
         case .noVideosFound:
             return "Make sure the folder contains supported video files (MP4, MOV, M4V, 3GP)."
         case .fileMoveFailedDestinationNotFound:
-            return "Create the destination folder or choose a different location."
+            return "Set a move location in Settings (⌘⇧S) or create the destination folder."
         case .fileMoveFailedPermission:
             return "Check that you have write permissions for the destination folder."
         case .fileMoveFailedUnknown, .fileDeleteFailed:

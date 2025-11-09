@@ -121,7 +121,7 @@ struct VideoPlayerView: View {
                 viewModel.playRandom()
                 return nil
             } else if characters == "m" {
-                viewModel.moveCurrentFile(to: "/Volumes/Seagate-8TB/USBDDP1/xxxxx/all/CIS/move")
+                viewModel.moveCurrentFile()
                 return nil
             } else if characters == "," {
                 viewModel.seekBackward(seconds: 10)

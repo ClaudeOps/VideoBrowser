@@ -77,6 +77,7 @@ class VideoPlayerViewModel: ObservableObject {
         static let isMuted = "isMuted"
         static let pauseOnLoseFocus = "pauseOnLoseFocus"
         static let autoResumeOnFocus = "autoResumeOnFocus"
+        static let moveLocationPath = "moveLocationPath"
     }
     
     // MARK: - Preferences
@@ -92,6 +93,7 @@ class VideoPlayerViewModel: ObservableObject {
         UserDefaults.standard.set(isMuted, forKey: PreferenceKeys.isMuted)
         UserDefaults.standard.set(settings.pauseOnLoseFocus, forKey: PreferenceKeys.pauseOnLoseFocus)
         UserDefaults.standard.set(settings.autoResumeOnFocus, forKey: PreferenceKeys.autoResumeOnFocus)
+        UserDefaults.standard.set(settings.moveLocationPath, forKey: PreferenceKeys.moveLocationPath)
     }
     
     private func loadPreferences() {
@@ -139,6 +141,9 @@ class VideoPlayerViewModel: ObservableObject {
         
         // Load mute state
         isMuted = UserDefaults.standard.bool(forKey: PreferenceKeys.isMuted)
+        
+        // Load move location
+        settings.moveLocationPath = UserDefaults.standard.string(forKey: PreferenceKeys.moveLocationPath)
     }
     
     // MARK: - Public Methods
@@ -295,6 +300,40 @@ class VideoPlayerViewModel: ObservableObject {
     
     func toggleMute() {
         isMuted.toggle()
+    }
+    
+    func selectMoveLocation() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.message = "Select destination folder for moving files"
+        panel.prompt = "Select"
+        
+        panel.begin { [weak self] response in
+            guard let self = self, response == .OK, let url = panel.url else { return }
+            
+            AppLogger.logInfo("User selected move location: \(url.path)", category: AppLogger.settings)
+            
+            // Validate the destination
+            do {
+                try ValidationHelper.validateDestination(path: url.path)
+                self.settings.moveLocationPath = url.path
+            } catch {
+                AppLogger.logError(error, category: AppLogger.settings)
+                self.showError(error)
+            }
+        }
+    }
+    
+    func moveCurrentFile() {
+        guard let destinationPath = settings.moveLocationPath else {
+            AppLogger.logWarning("Attempted to move file but no destination is set", category: AppLogger.fileOps)
+            showError(VideoPlayerError.fileMoveFailedDestinationNotFound("No move location configured. Set one in Settings."))
+            return
+        }
+        
+        moveCurrentFile(to: destinationPath)
     }
     
     func moveCurrentFile(to destinationPath: String) {

@@ -47,11 +47,13 @@ struct AppSettings {
     var seekBackwardSeconds: Double
     var pauseOnLoseFocus: Bool
     var autoResumeOnFocus: Bool
+    var moveLocationPath: String?
     
     static let defaultSettings = AppSettings(
         seekForwardSeconds: 10,
         seekBackwardSeconds: 10,
         pauseOnLoseFocus: true,
-        autoResumeOnFocus: false
+        autoResumeOnFocus: false,
+        moveLocationPath: nil
     )
 }
