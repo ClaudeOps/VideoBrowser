@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import AVFoundation
 
 struct VideoPlayerView: View {
     @EnvironmentObject var viewModel: VideoPlayerViewModel
@@ -34,6 +35,54 @@ struct VideoPlayerView: View {
         }
         .onAppear {
             setupKeyboardHandling()
+            setupWindowObservers()
+        }
+        .onDisappear {
+            viewModel.player?.pause()
+        }
+    }
+    
+    private func setupWindowObservers() {
+        // Observe window minimize
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.didMiniaturizeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak viewModel] _ in
+            viewModel?.pausePlayback()
+        }
+        
+        // Observe window close
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification,
+            object: nil,
+            queue: .main
+        ) { [weak viewModel] _ in
+            viewModel?.pausePlayback()
+        }
+        
+        // Observe app becoming inactive (losing focus)
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didResignActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak viewModel] notification in
+            guard let vm = viewModel else { return }
+            if vm.settings.pauseOnLoseFocus {
+                vm.pausePlayback()
+            }
+        }
+        
+        // Observe app becoming active (gaining focus)
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak viewModel] _ in
+            guard let vm = viewModel else { return }
+            if vm.settings.autoResumeOnFocus && !vm.isPlaying {
+                vm.resumePlayback()
+            }
         }
     }
     

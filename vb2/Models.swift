@@ -45,9 +45,13 @@ struct VideoFile: Identifiable {
 struct AppSettings {
     var seekForwardSeconds: Double
     var seekBackwardSeconds: Double
+    var pauseOnLoseFocus: Bool
+    var autoResumeOnFocus: Bool
     
     static let defaultSettings = AppSettings(
         seekForwardSeconds: 10,
-        seekBackwardSeconds: 10
+        seekBackwardSeconds: 10,
+        pauseOnLoseFocus: true,
+        autoResumeOnFocus: false
     )
 }

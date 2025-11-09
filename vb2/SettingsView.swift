@@ -55,7 +55,17 @@ struct SettingsView: View {
                             .monospacedDigit()
                     }
                 } header: {
-                    Text("Keyboard Shortcuts")
+                    Text("Seek Times")
+                        .font(.headline)
+                }
+                
+                Section {
+                    Toggle("Pause when app loses focus", isOn: $viewModel.settings.pauseOnLoseFocus)
+                    
+                    Toggle("Auto-resume when app gains focus", isOn: $viewModel.settings.autoResumeOnFocus)
+                        .disabled(!viewModel.settings.pauseOnLoseFocus)
+                } header: {
+                    Text("Playback Behavior")
                         .font(.headline)
                 }
                 

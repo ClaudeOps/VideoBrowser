@@ -73,6 +73,8 @@ class VideoPlayerViewModel: ObservableObject {
         static let seekForwardSeconds = "seekForwardSeconds"
         static let seekBackwardSeconds = "seekBackwardSeconds"
         static let isMuted = "isMuted"
+        static let pauseOnLoseFocus = "pauseOnLoseFocus"
+        static let autoResumeOnFocus = "autoResumeOnFocus"
     }
     
     // MARK: - Preferences
@@ -86,6 +88,8 @@ class VideoPlayerViewModel: ObservableObject {
         UserDefaults.standard.set(settings.seekForwardSeconds, forKey: PreferenceKeys.seekForwardSeconds)
         UserDefaults.standard.set(settings.seekBackwardSeconds, forKey: PreferenceKeys.seekBackwardSeconds)
         UserDefaults.standard.set(isMuted, forKey: PreferenceKeys.isMuted)
+        UserDefaults.standard.set(settings.pauseOnLoseFocus, forKey: PreferenceKeys.pauseOnLoseFocus)
+        UserDefaults.standard.set(settings.autoResumeOnFocus, forKey: PreferenceKeys.autoResumeOnFocus)
     }
     
     private func loadPreferences() {
@@ -121,6 +125,14 @@ class VideoPlayerViewModel: ObservableObject {
         }
         if seekBackward > 0 {
             settings.seekBackwardSeconds = seekBackward
+        }
+        
+        // Load pause/resume settings
+        if UserDefaults.standard.object(forKey: PreferenceKeys.pauseOnLoseFocus) != nil {
+            settings.pauseOnLoseFocus = UserDefaults.standard.bool(forKey: PreferenceKeys.pauseOnLoseFocus)
+        }
+        if UserDefaults.standard.object(forKey: PreferenceKeys.autoResumeOnFocus) != nil {
+            settings.autoResumeOnFocus = UserDefaults.standard.bool(forKey: PreferenceKeys.autoResumeOnFocus)
         }
         
         // Load mute state
@@ -168,11 +180,10 @@ class VideoPlayerViewModel: ObservableObject {
             NotificationCenter.default.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: player.currentItem)
             if let observer = timeObserver {
                 player.removeTimeObserver(observer)
-                timeObserver = nil
             }
         }
         
-        player?.pause()
+        pausePlayback()
         player = AVPlayer(url: videoURL)
         
         // Add observer for when video ends
@@ -193,8 +204,7 @@ class VideoPlayerViewModel: ObservableObject {
             }
         }
         
-        player?.play()
-        isPlaying = true
+        resumePlayback()
         player?.isMuted = isMuted
     }
     
@@ -230,19 +240,23 @@ class VideoPlayerViewModel: ObservableObject {
     }
     
     func togglePlayPause() {
-        guard let player = player else { return }
+        guard player != nil else { return }
         
         if isPlaying {
-            player.pause()
-            isPlaying = false
+            pausePlayback()
         } else {
-            player.play()
-            isPlaying = true
+            resumePlayback()
         }
     }
     
-    func toggleMute() {
-        isMuted.toggle()
+    func pausePlayback() {
+        player?.pause()
+        isPlaying = false
+    }
+    
+    func resumePlayback() {
+        player?.play()
+        isPlaying = true
     }
     
     func seek(to percentage: Double) {
@@ -267,6 +281,10 @@ class VideoPlayerViewModel: ObservableObject {
         player.seek(to: newTime > zeroTime ? newTime : zeroTime)
     }
     
+    func toggleMute() {
+        isMuted.toggle()
+    }
+    
     func moveCurrentFile(to destinationPath: String) {
         guard currentIndex < videoFiles.count else { return }
         
@@ -280,7 +298,7 @@ class VideoPlayerViewModel: ObservableObject {
                 return
             }
             
-            player?.pause()
+            pausePlayback()
             try fileManager.moveItem(at: fileURL, to: destinationURL)
             videoFiles.remove(at: currentIndex)
             
@@ -306,7 +324,7 @@ class VideoPlayerViewModel: ObservableObject {
         let fileURL = videoFiles[currentIndex].url
         
         do {
-            player?.pause()
+            pausePlayback()
             try fileManager.trashItem(at: fileURL, resultingItemURL: nil)
             videoFiles.remove(at: currentIndex)
             
@@ -335,7 +353,7 @@ class VideoPlayerViewModel: ObservableObject {
         
         isScanning = true
         videoFiles.removeAll()
-        player?.pause()
+        pausePlayback()
         player = nil
         currentIndex = 0
         currentTime = 0
@@ -405,13 +423,17 @@ class VideoPlayerViewModel: ObservableObject {
     private func handleVideoEnd() {
         switch playbackEndOption {
         case .stop:
+            // Do nothing, video stays at the end
+            isPlaying = false
             break
             
         case .replay:
+            // Seek back to beginning and play again
             player?.seek(to: .zero)
-            player?.play()
+            resumePlayback()
             
         case .playNext:
+            // Play next video, wrapping to beginning if at end
             if currentIndex < videoFiles.count - 1 {
                 playVideo(at: currentIndex + 1)
             } else if !videoFiles.isEmpty {
