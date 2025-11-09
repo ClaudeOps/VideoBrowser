@@ -49,9 +49,9 @@ struct vb2App: App {
                         }
                     }
                     .keyboardShortcut(option == .fileName ? "1" :
-                                    option == .filePath ? "2" :
-                                    option == .sizeAscending ? "3" :
-                                    option == .sizeDescending ? "4" : "5")
+                                        option == .filePath ? "2" :
+                                        option == .sizeAscending ? "3" :
+                                        option == .sizeDescending ? "4" : "5")
                 }
             }
             
@@ -69,8 +69,8 @@ struct vb2App: App {
                         }
                     }
                     .keyboardShortcut(option == .stop ? "s" :
-                                    option == .replay ? "l" : "n",
-                                    modifiers: [.command])
+                                        option == .replay ? "l" : "n",
+                                      modifiers: [.command])
                 }
             }
         }  // <-- Menu bar code ends here
