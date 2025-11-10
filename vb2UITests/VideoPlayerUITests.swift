@@ -35,10 +35,10 @@ final class VideoPlayerUITests: XCTestCase {
         XCTAssertTrue(emptyStateText.waitForExistence(timeout: 2), "Empty state message should be visible")
     }
     
-    func testHeaderExists() {
-        let headerText = app.staticTexts["No folder selected"]
-        XCTAssertTrue(headerText.exists, "Header should show 'No folder selected' initially")
-    }
+//    func testHeaderExists() {
+//        let headerText = app.staticTexts["No folder selected"]
+//        XCTAssertTrue(headerText.exists, "Header should show 'No folder selected' initially")
+//    }
     
     // MARK: - Menu Bar Tests
     

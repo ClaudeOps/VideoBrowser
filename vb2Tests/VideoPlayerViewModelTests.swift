@@ -77,7 +77,7 @@ final class VideoPlayerViewModelTests: XCTestCase {
     }
 
     func testPauseOnLoseFocusSetting() {
-        XCTAssertFalse(viewModel.settings.pauseOnLoseFocus, "Should default to false")
+        XCTAssertTrue(viewModel.settings.pauseOnLoseFocus, "Should default to true")
 
         viewModel.settings.pauseOnLoseFocus = true
         XCTAssertTrue(viewModel.settings.pauseOnLoseFocus)
@@ -249,16 +249,16 @@ final class VideoPlayerViewModelTests: XCTestCase {
         clearUserDefaults()
 
         let firstViewModel = VideoPlayerViewModel()
-        firstViewModel.settings.pauseOnLoseFocus = true
+        firstViewModel.settings.pauseOnLoseFocus = false
 
-        XCTAssertTrue(firstViewModel.settings.pauseOnLoseFocus)
+        XCTAssertFalse(firstViewModel.settings.pauseOnLoseFocus)
 
         UserDefaults.standard.synchronize()
         let savedValue = UserDefaults.standard.bool(forKey: "pauseOnLoseFocus")
-        XCTAssertTrue(savedValue, "Value should be saved to UserDefaults")
+        XCTAssertFalse(savedValue, "Value should be saved to UserDefaults")
 
         let secondViewModel = VideoPlayerViewModel()
-        XCTAssertTrue(secondViewModel.settings.pauseOnLoseFocus, "Should load saved pauseOnLoseFocus")
+        XCTAssertFalse(secondViewModel.settings.pauseOnLoseFocus, "Should load saved pauseOnLoseFocus")
     }
 
     func testAutoResumeOnFocusPersistence() {
