@@ -20,12 +20,14 @@ class VideoPlayerViewModel: ObservableObject {
     @Published var isPlaying = true
     @Published var selectedSort: SortOption = .fileName {
         didSet {
-            savePreferences()
+            if !isLoadingPreferences {
+                savePreferences()
+            }
         }
     }
     @Published var playbackEndOption: PlaybackEndOption = .playNext {
         didSet {
-            savePreferences()
+            if !isLoadingPreferences { savePreferences() }
         }
     }
     @Published var shouldSelectFolder = false
@@ -35,17 +37,22 @@ class VideoPlayerViewModel: ObservableObject {
     @Published var isMuted = false {
         didSet {
             player?.isMuted = isMuted
-            savePreferences()
+            if !isLoadingPreferences {
+                savePreferences()
+            }
         }
     }
     @Published var settings = AppSettings.defaultSettings {
         didSet {
-            savePreferences()
+            if !isLoadingPreferences {
+                savePreferences()
+            }
         }
     }
     @Published var errorMessage: String?
     @Published var showingError = false
     
+    private var isLoadingPreferences = false
     private var isSorting = false
     private let fileManager = FileManager.default
     private let videoExtensions = ["mp4", "mov", "m4v", "3gp"]
@@ -97,6 +104,10 @@ class VideoPlayerViewModel: ObservableObject {
     }
     
     private func loadPreferences() {
+        // Don't try to save preferences while loading them.
+        isLoadingPreferences = true
+        defer { isLoadingPreferences = false }
+        
         // Load sort option
         if let sortValue = UserDefaults.standard.string(forKey: PreferenceKeys.selectedSort),
            let sort = SortOption(rawValue: sortValue) {
