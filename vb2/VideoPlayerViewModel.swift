@@ -57,6 +57,7 @@ class VideoPlayerViewModel: ObservableObject {
     private let fileManager = FileManager.default
     private let videoExtensions = ["mp4", "mov", "m4v", "3gp"]
     private var timeObserver: Any?
+    private var endObserver: Any?
     private var currentScanID = UUID()
     
     // MARK: - Initialization
@@ -69,6 +70,9 @@ class VideoPlayerViewModel: ObservableObject {
         // Clean up observers
         if let player = player, let observer = timeObserver {
             player.removeTimeObserver(observer)
+        }
+        if let observer = endObserver {
+            NotificationCenter.default.removeObserver(observer)
         }
         NotificationCenter.default.removeObserver(self)
     }
@@ -100,7 +104,11 @@ class VideoPlayerViewModel: ObservableObject {
         UserDefaults.standard.set(isMuted, forKey: PreferenceKeys.isMuted)
         UserDefaults.standard.set(settings.pauseOnLoseFocus, forKey: PreferenceKeys.pauseOnLoseFocus)
         UserDefaults.standard.set(settings.autoResumeOnFocus, forKey: PreferenceKeys.autoResumeOnFocus)
-        UserDefaults.standard.set(settings.moveLocationPath, forKey: PreferenceKeys.moveLocationPath)
+        if let moveLocationPath = settings.moveLocationPath {
+            UserDefaults.standard.set(moveLocationPath, forKey: PreferenceKeys.moveLocationPath)
+        } else {
+            UserDefaults.standard.removeObject(forKey: PreferenceKeys.moveLocationPath)
+        }
     }
     
     private func loadPreferences() {
@@ -150,11 +158,13 @@ class VideoPlayerViewModel: ObservableObject {
             settings.autoResumeOnFocus = UserDefaults.standard.bool(forKey: PreferenceKeys.autoResumeOnFocus)
         }
         
+        // Load move location path
+        if let moveLocationPath = UserDefaults.standard.string(forKey: PreferenceKeys.moveLocationPath) {
+            settings.moveLocationPath = moveLocationPath
+        }
+        
         // Load mute state
         isMuted = UserDefaults.standard.bool(forKey: PreferenceKeys.isMuted)
-        
-        // Load move location
-        settings.moveLocationPath = UserDefaults.standard.string(forKey: PreferenceKeys.moveLocationPath)
     }
     
     // MARK: - Public Methods
@@ -203,19 +213,20 @@ class VideoPlayerViewModel: ObservableObject {
         currentIndex = index
         let videoURL = videoFiles[index].url
         
-        // Remove previous observer
-        if let player = player {
-            NotificationCenter.default.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: player.currentItem)
-            if let observer = timeObserver {
-                player.removeTimeObserver(observer)
-            }
+        // Remove previous observers
+        if let player = player, let observer = timeObserver {
+            player.removeTimeObserver(observer)
+            timeObserver = nil
+        }
+        if let observer = endObserver {
+            NotificationCenter.default.removeObserver(observer)
         }
         
         pausePlayback()
         player = AVPlayer(url: videoURL)
         
-        // Add observer for when video ends
-        NotificationCenter.default.addObserver(
+        // Add observer for when video ends using block-based API
+        endObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime,
             object: player?.currentItem,
             queue: .main
@@ -339,8 +350,9 @@ class VideoPlayerViewModel: ObservableObject {
     
     func moveCurrentFile() {
         guard let destinationPath = settings.moveLocationPath else {
-            AppLogger.logWarning("Attempted to move file but no destination is set", category: AppLogger.fileOps)
-            showError(VideoPlayerError.fileMoveFailedDestinationNotFound("No move location configured. Set one in Settings."))
+            let error = VideoPlayerError.fileMoveFailedDestinationNotFound("No destination set")
+            AppLogger.logError( error, category: AppLogger.fileOps)
+            showError(error)
             return
         }
         
