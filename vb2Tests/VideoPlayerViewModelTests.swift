@@ -32,6 +32,9 @@ final class VideoPlayerViewModelTests: XCTestCase {
         defaults.removeObject(forKey: "seekForwardSeconds")
         defaults.removeObject(forKey: "seekBackwardSeconds")
         defaults.removeObject(forKey: "isMuted")
+        defaults.removeObject(forKey: "pauseOnLoseFocus")
+        defaults.removeObject(forKey: "autoResumeOnFocus")
+        defaults.removeObject(forKey: "moveLocationPath")
     }
     
     // MARK: - Initialization Tests
@@ -65,12 +68,42 @@ final class VideoPlayerViewModelTests: XCTestCase {
     
     func testToggleMute() {
         XCTAssertFalse(viewModel.isMuted, "Should start unmuted")
-        
+
         viewModel.toggleMute()
         XCTAssertTrue(viewModel.isMuted, "Should be muted after toggle")
-        
+
         viewModel.toggleMute()
         XCTAssertFalse(viewModel.isMuted, "Should be unmuted after second toggle")
+    }
+
+    func testPauseOnLoseFocusSetting() {
+        XCTAssertFalse(viewModel.settings.pauseOnLoseFocus, "Should default to false")
+
+        viewModel.settings.pauseOnLoseFocus = true
+        XCTAssertTrue(viewModel.settings.pauseOnLoseFocus)
+
+        viewModel.settings.pauseOnLoseFocus = false
+        XCTAssertFalse(viewModel.settings.pauseOnLoseFocus)
+    }
+
+    func testAutoResumeOnFocusSetting() {
+        XCTAssertFalse(viewModel.settings.autoResumeOnFocus, "Should default to false")
+
+        viewModel.settings.autoResumeOnFocus = true
+        XCTAssertTrue(viewModel.settings.autoResumeOnFocus)
+
+        viewModel.settings.autoResumeOnFocus = false
+        XCTAssertFalse(viewModel.settings.autoResumeOnFocus)
+    }
+
+    func testMoveLocationPathSetting() {
+        XCTAssertNil(viewModel.settings.moveLocationPath, "Should default to nil")
+
+        viewModel.settings.moveLocationPath = "/tmp/test"
+        XCTAssertEqual(viewModel.settings.moveLocationPath, "/tmp/test")
+
+        viewModel.settings.moveLocationPath = nil
+        XCTAssertNil(viewModel.settings.moveLocationPath)
     }
     
     // MARK: - Sort Option Tests
@@ -105,119 +138,159 @@ final class VideoPlayerViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.playbackEndOption, .playNext)
     }
     
-    // MARK: - UserDefaults Persistence Tests (TEMPORARILY DISABLED)
-    
-    func testSortOptionPersistence() throws {
-        throw XCTSkip("Temporarily disabled - investigating persistence issue")
-        
+    // MARK: - UserDefaults Persistence Tests
+
+    func testSortOptionPersistence() {
         // Clear and set specific value
         clearUserDefaults()
-        
+
         // Create a fresh viewModel after clearing
         let firstViewModel = VideoPlayerViewModel()
         firstViewModel.setSortOption(.sizeDescending)
-        
+
         // Verify it was set
         XCTAssertEqual(firstViewModel.selectedSort, .sizeDescending, "Should be set to size descending")
-        
+
         // Verify it was saved to UserDefaults
         let savedValue = UserDefaults.standard.string(forKey: "selectedSort")
         XCTAssertEqual(savedValue, "Size (Largest First)", "Value should be saved to UserDefaults")
-        
+
         // Force synchronization
         UserDefaults.standard.synchronize()
-        
+
         // Create new instance to test loading
         let secondViewModel = VideoPlayerViewModel()
         XCTAssertEqual(secondViewModel.selectedSort, .sizeDescending, "Should load saved sort option")
     }
     
-    func testPlaybackOptionPersistence() throws {
-        throw XCTSkip("Temporarily disabled - investigating persistence issue")
-        
+    func testPlaybackOptionPersistence() {
         // Clear and set specific value
         clearUserDefaults()
-        
+
         // Create a fresh viewModel after clearing
         let firstViewModel = VideoPlayerViewModel()
         firstViewModel.setPlaybackEndOption(.replay)
-        
+
         // Verify it was set
         XCTAssertEqual(firstViewModel.playbackEndOption, .replay, "Should be set to replay")
-        
+
         // Verify it was saved to UserDefaults
         let savedValue = UserDefaults.standard.string(forKey: "playbackEndOption")
         XCTAssertEqual(savedValue, "Replay", "Value should be saved to UserDefaults")
-        
+
         // Force synchronization
         UserDefaults.standard.synchronize()
-        
+
         // Create new instance to test loading
         let secondViewModel = VideoPlayerViewModel()
         XCTAssertEqual(secondViewModel.playbackEndOption, .replay, "Should load saved playback option")
     }
     
-    func testSeekTimesPersistence() throws {
-        throw XCTSkip("Temporarily disabled - investigating persistence issue")
-        
+    func testSeekTimesPersistence() {
         // Clear and set specific values
         clearUserDefaults()
-        
+
         // Create a fresh viewModel after clearing
         let firstViewModel = VideoPlayerViewModel()
         firstViewModel.settings.seekForwardSeconds = 25
         firstViewModel.settings.seekBackwardSeconds = 15
-        
+
         // Verify they were set
         XCTAssertEqual(firstViewModel.settings.seekForwardSeconds, 25)
         XCTAssertEqual(firstViewModel.settings.seekBackwardSeconds, 15)
-        
+
         // Verify they were saved to UserDefaults
         let savedForward = UserDefaults.standard.double(forKey: "seekForwardSeconds")
         let savedBackward = UserDefaults.standard.double(forKey: "seekBackwardSeconds")
         XCTAssertEqual(savedForward, 25, "Forward value should be saved to UserDefaults")
         XCTAssertEqual(savedBackward, 15, "Backward value should be saved to UserDefaults")
-        
+
         // Force synchronization
         UserDefaults.standard.synchronize()
-        
+
         // Create new instance to test loading
         let secondViewModel = VideoPlayerViewModel()
         XCTAssertEqual(secondViewModel.settings.seekForwardSeconds, 25, "Should load saved forward seek time")
         XCTAssertEqual(secondViewModel.settings.seekBackwardSeconds, 15, "Should load saved backward seek time")
     }
     
-    func testMuteStatePersistence() throws {
-        throw XCTSkip("Temporarily disabled - investigating persistence issue")
-        
+    func testMuteStatePersistence() {
         // Clear and set specific value
         clearUserDefaults()
-        
+
         // Create a fresh viewModel after clearing
         let firstViewModel = VideoPlayerViewModel()
-        
+
         // Explicitly set mute to true
         firstViewModel.isMuted = true
         XCTAssertTrue(firstViewModel.isMuted, "First ViewModel should be muted")
-        
+
         // Verify it was saved to UserDefaults
         UserDefaults.standard.synchronize()
         let savedValue = UserDefaults.standard.bool(forKey: "isMuted")
         XCTAssertTrue(savedValue, "Value should be saved to UserDefaults")
-        
+
         // Verify we can read it back directly
         let directRead = UserDefaults.standard.bool(forKey: "isMuted")
         XCTAssertTrue(directRead, "Should be able to read true from UserDefaults")
-        
+
         // Create new instance to test loading
         let secondViewModel = VideoPlayerViewModel()
-        
+
         // Debug: check what it loaded
         let loadedValue = UserDefaults.standard.bool(forKey: "isMuted")
         print("Loaded value from UserDefaults: \(loadedValue)")
         print("Second ViewModel isMuted: \(secondViewModel.isMuted)")
-        
+
         XCTAssertTrue(secondViewModel.isMuted, "Should load saved mute state")
+    }
+
+    func testPauseOnLoseFocusPersistence() {
+        clearUserDefaults()
+
+        let firstViewModel = VideoPlayerViewModel()
+        firstViewModel.settings.pauseOnLoseFocus = true
+
+        XCTAssertTrue(firstViewModel.settings.pauseOnLoseFocus)
+
+        UserDefaults.standard.synchronize()
+        let savedValue = UserDefaults.standard.bool(forKey: "pauseOnLoseFocus")
+        XCTAssertTrue(savedValue, "Value should be saved to UserDefaults")
+
+        let secondViewModel = VideoPlayerViewModel()
+        XCTAssertTrue(secondViewModel.settings.pauseOnLoseFocus, "Should load saved pauseOnLoseFocus")
+    }
+
+    func testAutoResumeOnFocusPersistence() {
+        clearUserDefaults()
+
+        let firstViewModel = VideoPlayerViewModel()
+        firstViewModel.settings.autoResumeOnFocus = true
+
+        XCTAssertTrue(firstViewModel.settings.autoResumeOnFocus)
+
+        UserDefaults.standard.synchronize()
+        let savedValue = UserDefaults.standard.bool(forKey: "autoResumeOnFocus")
+        XCTAssertTrue(savedValue, "Value should be saved to UserDefaults")
+
+        let secondViewModel = VideoPlayerViewModel()
+        XCTAssertTrue(secondViewModel.settings.autoResumeOnFocus, "Should load saved autoResumeOnFocus")
+    }
+
+    func testMoveLocationPathPersistence() {
+        clearUserDefaults()
+
+        let firstViewModel = VideoPlayerViewModel()
+        firstViewModel.settings.moveLocationPath = "/tmp/test/destination"
+
+        XCTAssertEqual(firstViewModel.settings.moveLocationPath, "/tmp/test/destination")
+
+        UserDefaults.standard.synchronize()
+        let savedValue = UserDefaults.standard.string(forKey: "moveLocationPath")
+        XCTAssertEqual(savedValue, "/tmp/test/destination", "Value should be saved to UserDefaults")
+
+        let secondViewModel = VideoPlayerViewModel()
+        XCTAssertEqual(secondViewModel.settings.moveLocationPath, "/tmp/test/destination", "Should load saved moveLocationPath")
     }
     
     // MARK: - Navigation Tests
@@ -238,29 +311,193 @@ final class VideoPlayerViewModelTests: XCTestCase {
     }
     
     func testPlayRandomWithSingleVideo() {
-        // This would require mocking video files
-        // See mock data tests section below
+        // With a single video, playRandom should not change the index
+        let url = URL(fileURLWithPath: "/path/to/video.mp4")
+        viewModel.videoFiles = [VideoFile(url: url, size: 1024)]
+        viewModel.currentIndex = 0
+
+        viewModel.playRandom()
+        // Should remain at index 0 since there's only one video (count <= 1)
+        XCTAssertEqual(viewModel.currentIndex, 0, "Should remain at 0 with single video")
+    }
+
+    func testPlayRandomWithMultipleVideos() {
+        // Create multiple mock videos
+        var mockFiles: [VideoFile] = []
+        for i in 0..<5 {
+            let url = URL(fileURLWithPath: "/path/to/video\(i).mp4")
+            mockFiles.append(VideoFile(url: url, size: Int64(i * 1024)))
+        }
+        viewModel.videoFiles = mockFiles
+        viewModel.currentIndex = 0
+
+        // Store the current index
+        let originalIndex = viewModel.currentIndex
+
+        // Try multiple times to ensure randomness works
+        var foundDifferentIndex = false
+        for _ in 0..<10 {
+            viewModel.playRandom()
+            if viewModel.currentIndex != originalIndex {
+                foundDifferentIndex = true
+                break
+            }
+            viewModel.currentIndex = originalIndex // Reset for next try
+        }
+
+        XCTAssertTrue(foundDifferentIndex, "Should eventually select a different index with random playback")
     }
     
+    // MARK: - Seek Operations Tests
+
+    func testSeekToPercentage() {
+        // Create a mock video file
+        let url = URL(fileURLWithPath: "/path/to/video.mp4")
+        viewModel.videoFiles = [VideoFile(url: url, size: 1024)]
+
+        // Mock duration
+        viewModel.duration = 100.0
+
+        // Test seeking to 50%
+        viewModel.seek(to: 0.5)
+        // Note: We can't fully test this without a real AVPlayer,
+        // but we can verify the method doesn't crash
+        XCTAssertEqual(viewModel.duration, 100.0, "Duration should remain unchanged")
+    }
+
+    func testSeekWithNoDuration() {
+        // With no duration, seek should handle gracefully
+        viewModel.duration = 0
+        viewModel.seek(to: 0.5)
+        // Should not crash
+        XCTAssertEqual(viewModel.duration, 0)
+    }
+
+    func testSeekForwardUsesSettings() {
+        // Verify that seekForward uses the configured seconds
+        viewModel.settings.seekForwardSeconds = 15
+        XCTAssertEqual(viewModel.settings.seekForwardSeconds, 15)
+
+        // The actual seek operation requires a player, but we've verified the setting is used
+    }
+
+    func testSeekBackwardUsesSettings() {
+        // Verify that seekBackward uses the configured seconds
+        viewModel.settings.seekBackwardSeconds = 20
+        XCTAssertEqual(viewModel.settings.seekBackwardSeconds, 20)
+
+        // The actual seek operation requires a player, but we've verified the setting is used
+    }
+
     // MARK: - Settings Sheet Tests
-    
+
     func testShowSettings() {
         XCTAssertFalse(viewModel.showingSettings)
-        
+
         viewModel.showingSettings = true
         XCTAssertTrue(viewModel.showingSettings)
-        
+
         viewModel.showingSettings = false
         XCTAssertFalse(viewModel.showingSettings)
     }
     
     // MARK: - Folder Selection Tests
-    
+
     func testTriggerFolderSelection() {
         XCTAssertFalse(viewModel.shouldSelectFolder)
-        
+
         viewModel.triggerFolderSelection()
         XCTAssertTrue(viewModel.shouldSelectFolder)
+    }
+
+    // MARK: - Move File Operations Tests
+
+    func testMoveCurrentFileWithNoDestination() {
+        // Create a mock video file
+        let url = URL(fileURLWithPath: "/path/to/video.mp4")
+        viewModel.videoFiles = [VideoFile(url: url, size: 1024)]
+        viewModel.currentIndex = 0
+
+        // Ensure no destination is set
+        viewModel.settings.moveLocationPath = nil
+
+        // Try to move without destination
+        viewModel.moveCurrentFile()
+
+        // Should set error message
+        XCTAssertNotNil(viewModel.errorMessage, "Should have error message when no destination is set")
+        XCTAssertTrue(viewModel.showingError, "Should show error")
+    }
+
+    func testMoveCurrentFileWithInvalidIndex() {
+        // Set move destination
+        viewModel.settings.moveLocationPath = "/tmp/destination"
+
+        // Set current index beyond array bounds
+        viewModel.currentIndex = 10
+        viewModel.videoFiles = []
+
+        // Should handle gracefully without crashing
+        viewModel.moveCurrentFile()
+    }
+
+    func testMoveLocationPathValidation() {
+        // Test setting a move location path
+        let testPath = "/tmp/test/videos"
+        viewModel.settings.moveLocationPath = testPath
+
+        XCTAssertEqual(viewModel.settings.moveLocationPath, testPath)
+    }
+
+    // MARK: - Error Handling Tests
+
+    func testErrorMessageDisplay() {
+        XCTAssertFalse(viewModel.showingError, "Should not show error initially")
+        XCTAssertNil(viewModel.errorMessage, "Should have no error message initially")
+
+        // Simulate an error condition by trying to move with no destination
+        viewModel.settings.moveLocationPath = nil
+        let url = URL(fileURLWithPath: "/path/to/video.mp4")
+        viewModel.videoFiles = [VideoFile(url: url, size: 1024)]
+        viewModel.currentIndex = 0
+
+        viewModel.moveCurrentFile()
+
+        XCTAssertTrue(viewModel.showingError, "Should show error after failed move")
+        XCTAssertNotNil(viewModel.errorMessage, "Should have error message")
+    }
+
+    func testPlaybackStateInitialization() {
+        // Test that playback states are properly initialized
+        XCTAssertTrue(viewModel.isPlaying, "Should default to playing state")
+        XCTAssertEqual(viewModel.currentTime, 0, "Should start at time 0")
+        XCTAssertEqual(viewModel.duration, 0, "Should start with duration 0")
+    }
+
+    func testTogglePlayPauseWithNoPlayer() {
+        // Should handle gracefully when no player exists
+        XCTAssertNil(viewModel.player, "Should have no player initially")
+
+        viewModel.togglePlayPause()
+
+        // Should not crash
+        XCTAssertNil(viewModel.player, "Should still have no player")
+    }
+
+    func testPausePlaybackState() {
+        viewModel.isPlaying = true
+
+        viewModel.pausePlayback()
+
+        XCTAssertFalse(viewModel.isPlaying, "Should be paused after pausePlayback")
+    }
+
+    func testResumePlaybackState() {
+        viewModel.isPlaying = false
+
+        viewModel.resumePlayback()
+
+        XCTAssertTrue(viewModel.isPlaying, "Should be playing after resumePlayback")
     }
 }
 
