@@ -89,6 +89,7 @@ class VideoPlayerViewModel: ObservableObject {
         static let pauseOnLoseFocus = "pauseOnLoseFocus"
         static let autoResumeOnFocus = "autoResumeOnFocus"
         static let moveLocationPath = "moveLocationPath"
+        static let includeSubfolders = "includeSubfolders"
     }
     
     // MARK: - Preferences
@@ -104,6 +105,7 @@ class VideoPlayerViewModel: ObservableObject {
         UserDefaults.standard.set(isMuted, forKey: PreferenceKeys.isMuted)
         UserDefaults.standard.set(settings.pauseOnLoseFocus, forKey: PreferenceKeys.pauseOnLoseFocus)
         UserDefaults.standard.set(settings.autoResumeOnFocus, forKey: PreferenceKeys.autoResumeOnFocus)
+        UserDefaults.standard.set(settings.includeSubfolders, forKey: PreferenceKeys.includeSubfolders)
         if let moveLocationPath = settings.moveLocationPath {
             UserDefaults.standard.set(moveLocationPath, forKey: PreferenceKeys.moveLocationPath)
         } else {
@@ -163,6 +165,11 @@ class VideoPlayerViewModel: ObservableObject {
             settings.moveLocationPath = moveLocationPath
         }
         
+        // Load include subfolders setting
+        if UserDefaults.standard.object(forKey: PreferenceKeys.includeSubfolders) != nil {
+            settings.includeSubfolders = UserDefaults.standard.bool(forKey: PreferenceKeys.includeSubfolders)
+        }
+        
         // Load mute state
         isMuted = UserDefaults.standard.bool(forKey: PreferenceKeys.isMuted)
     }
@@ -180,10 +187,24 @@ class VideoPlayerViewModel: ObservableObject {
         panel.allowsMultipleSelection = false
         panel.message = "Select a folder to scan for video files"
         
+        // Create checkbox for subfolder option
+        let checkbox = NSButton(checkboxWithTitle: "Include subfolders", target: nil, action: nil)
+        checkbox.state = settings.includeSubfolders ? .on : .off
+        
+        // Create accessory view
+        let accessoryView = NSView(frame: NSRect(x: 0, y: 0, width: 200, height: 25))
+        checkbox.frame = NSRect(x: 0, y: 0, width: 200, height: 25)
+        accessoryView.addSubview(checkbox)
+        
+        panel.accessoryView = accessoryView
+        
         panel.begin { [weak self] response in
             guard let self = self, response == .OK, let url = panel.url else { return }
             
-            AppLogger.logInfo("User selected folder: \(url.path)", category: AppLogger.scan)
+            // Update the includeSubfolders setting from checkbox state
+            self.settings.includeSubfolders = checkbox.state == .on
+            
+            AppLogger.logInfo("User selected folder: \(url.path), includeSubfolders: \(self.settings.includeSubfolders)", category: AppLogger.scan)
             
             // Validate folder before scanning
             do {
@@ -440,7 +461,7 @@ class VideoPlayerViewModel: ObservableObject {
         let scanID = UUID()
         currentScanID = scanID
         
-        AppLogger.logInfo("Starting scan of directory: \(directory.path)", category: AppLogger.scan)
+        AppLogger.logInfo("Starting scan of directory: \(directory.path), includeSubfolders: \(settings.includeSubfolders)", category: AppLogger.scan)
         
         isScanning = true
         videoFiles.removeAll()
@@ -459,10 +480,16 @@ class VideoPlayerViewModel: ObservableObject {
                 return
             }
             
+            // Set up enumerator options based on subfolder setting
+            var enumeratorOptions: FileManager.DirectoryEnumerationOptions = [.skipsHiddenFiles]
+            if !self.settings.includeSubfolders {
+                enumeratorOptions.insert(.skipsSubdirectoryDescendants)
+            }
+            
             guard let enumerator = self.fileManager.enumerator(
                 at: directory,
                 includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey],
-                options: [.skipsHiddenFiles]
+                options: enumeratorOptions
             ) else {
                 DispatchQueue.main.async {
                     if scanID == self.currentScanID {

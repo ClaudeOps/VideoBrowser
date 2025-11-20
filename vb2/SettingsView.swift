@@ -68,6 +68,12 @@ struct SettingsView: View {
                                 .foregroundColor(.orange)
                         }
                     }
+                    
+                    Divider()
+                        .padding(.vertical, 8)
+                    
+                    Toggle("Include subfolders when scanning", isOn: $viewModel.settings.includeSubfolders)
+                        .help("When enabled, video files in subfolders will also be found")
                 } header: {
                     Text("File Management")
                         .font(.headline)

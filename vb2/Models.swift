@@ -48,12 +48,14 @@ struct AppSettings {
     var pauseOnLoseFocus: Bool
     var autoResumeOnFocus: Bool
     var moveLocationPath: String?
+    var includeSubfolders: Bool
     
     static let defaultSettings = AppSettings(
         seekForwardSeconds: 10,
         seekBackwardSeconds: 10,
         pauseOnLoseFocus: true,
         autoResumeOnFocus: false,
-        moveLocationPath: nil
+        moveLocationPath: nil,
+        includeSubfolders: true
     )
 }
