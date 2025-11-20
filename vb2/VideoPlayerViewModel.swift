@@ -53,7 +53,7 @@ class VideoPlayerViewModel: ObservableObject {
     @Published var showingError = false
     
     private var isLoadingPreferences = false
-    private var isSorting = false
+    @Published var isSorting = false  // now published for testing scripts
     private let fileManager = FileManager.default
     private let videoExtensions = ["mp4", "mov", "m4v", "3gp"]
     private var timeObserver: Any?
