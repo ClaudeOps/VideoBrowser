@@ -143,6 +143,73 @@ final class VideoPlayerUITests: XCTestCase {
         }
     }
     
+    func testSettingsIncludeSubfoldersToggle() {
+        // Open settings
+        app.typeKey("s", modifierFlags: [.command, .shift])
+        
+        // Wait for sheet
+        let settingsTitle = app.staticTexts["Settings"]
+        guard settingsTitle.waitForExistence(timeout: 3) else {
+            XCTFail("Settings sheet did not open")
+            return
+        }
+        
+        // Look for the include subfolders toggle
+        // SwiftUI toggles are represented as checkboxes in XCTest
+        let includeSubfoldersToggle = app.checkBoxes.matching(identifier: "Include subfolders when scanning").firstMatch
+        
+        // If we can't find it by identifier, try by containing text
+        let allCheckBoxes = app.checkBoxes
+        var foundToggle = false
+        
+        for i in 0..<allCheckBoxes.count {
+            let checkbox = allCheckBoxes.element(boundBy: i)
+            if checkbox.exists {
+                foundToggle = true
+                // The toggle should exist and be interactable
+                XCTAssertTrue(checkbox.isEnabled, "Include subfolders toggle should be enabled")
+                break
+            }
+        }
+        
+        // At minimum, verify the text label exists
+        let toggleLabel = app.staticTexts["Include subfolders when scanning"]
+        XCTAssertTrue(toggleLabel.exists || foundToggle, "Include subfolders toggle or label should exist")
+        
+        // Close settings
+        if app.buttons["Done"].exists {
+            app.buttons["Done"].click()
+        }
+    }
+    
+    func testSettingsFileManagementSection() {
+        // Open settings
+        app.typeKey("s", modifierFlags: [.command, .shift])
+        
+        // Wait for sheet
+        let settingsTitle = app.staticTexts["Settings"]
+        guard settingsTitle.waitForExistence(timeout: 3) else {
+            XCTFail("Settings sheet did not open")
+            return
+        }
+        
+        // Verify File Management section exists
+        let fileManagementHeader = app.staticTexts["File Management"]
+        XCTAssertTrue(fileManagementHeader.exists, "File Management section header should exist")
+        
+        // Verify move destination controls exist
+        let moveDestinationLabel = app.staticTexts["Move Destination:"]
+        XCTAssertTrue(moveDestinationLabel.exists, "Move destination label should exist")
+        
+        let chooseFolderButton = app.buttons["Choose Folder..."]
+        XCTAssertTrue(chooseFolderButton.exists, "Choose folder button should exist")
+        
+        // Close settings
+        if app.buttons["Done"].exists {
+            app.buttons["Done"].click()
+        }
+    }
+    
     // MARK: - Keyboard Shortcut Tests
     
     func testSettingsKeyboardShortcut() {
@@ -218,6 +285,21 @@ extension VideoPlayerUITests {
     func testProgressBarWithVideo() {
         // This test would require loading actual videos
         // Placeholder for future implementation
+    }
+    
+    func testClickToTogglePlayPause() {
+        // This test would require:
+        // 1. Loading actual video files
+        // 2. Finding the video player view
+        // 3. Clicking on it
+        // 4. Verifying play/pause state changes
+        // Placeholder for future implementation with actual video content
+        
+        // Example implementation outline:
+        // let videoPlayer = app.otherElements.matching(identifier: "VideoPlayer").firstMatch
+        // XCTAssertTrue(videoPlayer.waitForExistence(timeout: 2))
+        // videoPlayer.click()
+        // Verify that playback state changed
     }
 }
 

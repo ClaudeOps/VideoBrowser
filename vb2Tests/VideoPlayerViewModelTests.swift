@@ -36,6 +36,7 @@ final class VideoPlayerViewModelTests: XCTestCase {
         defaults.removeObject(forKey: "pauseOnLoseFocus")
         defaults.removeObject(forKey: "autoResumeOnFocus")
         defaults.removeObject(forKey: "moveLocationPath")
+        defaults.removeObject(forKey: "includeSubfolders")
         defaults.removeObject(forKey: "selectedFolderBookmark")
         defaults.removeObject(forKey: "lastFolderPath")
     }
@@ -94,6 +95,7 @@ final class VideoPlayerViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.settings.pauseOnLoseFocus, "pauseOnLoseFocus should default to true")
         XCTAssertFalse(viewModel.settings.autoResumeOnFocus, "autoResumeOnFocus should default to false")
         XCTAssertNil(viewModel.settings.moveLocationPath, "moveLocationPath should default to nil")
+        XCTAssertTrue(viewModel.settings.includeSubfolders, "includeSubfolders should default to true")
     }
     
     // MARK: - Settings Tests
@@ -144,6 +146,36 @@ final class VideoPlayerViewModelTests: XCTestCase {
 
         viewModel.settings.moveLocationPath = nil
         XCTAssertNil(viewModel.settings.moveLocationPath)
+    }
+    
+    func testIncludeSubfoldersSetting() {
+        XCTAssertTrue(viewModel.settings.includeSubfolders, "Should default to true")
+        
+        viewModel.settings.includeSubfolders = false
+        XCTAssertFalse(viewModel.settings.includeSubfolders, "Should be able to set to false")
+        
+        viewModel.settings.includeSubfolders = true
+        XCTAssertTrue(viewModel.settings.includeSubfolders, "Should be able to set back to true")
+    }
+    
+    func testIncludeSubfoldersPersistence() {
+        // Set to false and verify persistence
+        viewModel.settings.includeSubfolders = false
+        
+        // Wait for save to complete
+        let expectation = XCTestExpectation(description: "Settings saved")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            expectation.fulfill()
+        }
+        wait(for: [expectation], timeout: 1.0)
+        
+        // Verify it was saved to UserDefaults
+        let savedValue = UserDefaults.standard.bool(forKey: "includeSubfolders")
+        XCTAssertFalse(savedValue, "Should persist false value to UserDefaults")
+        
+        // Create new view model and verify it loads the setting
+        let newViewModel = VideoPlayerViewModel()
+        XCTAssertFalse(newViewModel.settings.includeSubfolders, "New view model should load saved setting")
     }
     
     // MARK: - Sort Option Tests
