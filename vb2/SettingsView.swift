@@ -132,8 +132,9 @@ struct SettingsView: View {
                         KeyboardShortcutRow(key: "↑", description: "Previous video")
                         KeyboardShortcutRow(key: "↓", description: "Next video")
                         KeyboardShortcutRow(key: "R", description: "Random video")
+                        KeyboardShortcutRow(key: "M", description: "Mute/Unmute")
                         HStack {
-                            KeyboardShortcutRow(key: "M", description: "Move file to destination")
+                            KeyboardShortcutRow(key: "1", description: "Move file to destination")
                             if viewModel.settings.moveLocationPath == nil {
                                 Image(systemName: "exclamationmark.triangle.fill")
                                     .foregroundColor(.orange)

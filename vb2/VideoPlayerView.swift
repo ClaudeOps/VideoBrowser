@@ -127,6 +127,9 @@ struct VideoPlayerView: View {
                 viewModel.playRandom()
                 return nil
             } else if characters == "m" {
+                viewModel.toggleMute()
+                return nil
+            } else if characters == "1" {
                 viewModel.moveCurrentFile()
                 return nil
             } else if characters == "," {
