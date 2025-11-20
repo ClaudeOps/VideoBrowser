@@ -18,6 +18,14 @@ class VideoPlayerViewModel: ObservableObject {
     @Published var currentIndex = 0
     @Published var player: AVPlayer?
     @Published var isPlaying = true
+    
+    // Computed property for current video file
+    var currentVideoFile: VideoFile? {
+        guard currentIndex >= 0 && currentIndex < videoFiles.count else {
+            return nil
+        }
+        return videoFiles[currentIndex]
+    }
     @Published var selectedSort: SortOption = .fileName {
         didSet {
             if !isLoadingPreferences {

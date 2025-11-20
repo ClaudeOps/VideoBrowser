@@ -11,27 +11,41 @@ import SwiftUI
 
 struct HeaderView: View {
     let selectedFolder: URL?
+    let currentVideoFile: VideoFile?
+    
+    private var displayText: String {
+        guard let folder = selectedFolder else {
+            return "No folder selected"
+        }
+        
+        guard let video = currentVideoFile else {
+            return "\(folder.path) • (no video)"
+        }
+        
+        // Calculate relative path from selected folder to current video
+        let folderPath = folder.path
+        let videoPath = video.url.path
+        
+        // Get the relative part
+        if videoPath.hasPrefix(folderPath) {
+            var relativePath = String(videoPath.dropFirst(folderPath.count))
+            // Ensure it starts with /
+            if !relativePath.hasPrefix("/") {
+                relativePath = "/" + relativePath
+            }
+            return "\(folderPath) • \(relativePath)"
+        } else {
+            // Fallback if paths don't match (shouldn't happen)
+            return "\(folderPath) • /\(video.name)"
+        }
+    }
     
     var body: some View {
         HStack {
-            if let folder = selectedFolder {
-                Text(folder.lastPathComponent)
-                    .font(.headline)
-                    .lineLimit(1)
-                
-                Text("•")
-                    .foregroundColor(.secondary)
-                
-                Text(folder.path)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            } else {
-                Text("No folder selected")
-                    .font(.headline)
-                    .foregroundColor(.secondary)
-            }
+            Text(displayText)
+                .font(.headline)
+                .lineLimit(1)
+                .truncationMode(.middle)
             
             Spacer()
         }

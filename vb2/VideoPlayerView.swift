@@ -13,7 +13,7 @@ struct VideoPlayerView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            HeaderView(selectedFolder: viewModel.selectedFolder)
+            HeaderView(selectedFolder: viewModel.selectedFolder, currentVideoFile: viewModel.currentVideoFile)
             
             Divider()
             
