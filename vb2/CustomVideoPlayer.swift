@@ -13,15 +13,18 @@ import AppKit
 
 struct CustomVideoPlayerView: NSViewRepresentable {
     let player: AVPlayer
+    var onTap: (() -> Void)?
     
     func makeNSView(context: Context) -> PlayerContainerView {
         let containerView = PlayerContainerView()
         containerView.setupPlayer(player)
+        containerView.onTap = onTap
         return containerView
     }
     
     func updateNSView(_ nsView: PlayerContainerView, context: Context) {
         nsView.updatePlayer(player)
+        nsView.onTap = onTap
     }
 }
 
@@ -29,6 +32,7 @@ struct CustomVideoPlayerView: NSViewRepresentable {
 
 class PlayerContainerView: NSView {
     private var playerLayer: AVPlayerLayer?
+    var onTap: (() -> Void)?
     
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -71,7 +75,12 @@ class PlayerContainerView: NSView {
         CATransaction.commit()
     }
     
+    override func mouseDown(with event: NSEvent) {
+        // Call the tap handler to toggle play/pause
+        onTap?()
+    }
+    
     override var acceptsFirstResponder: Bool {
-        return false
+        return true
     }
 }
