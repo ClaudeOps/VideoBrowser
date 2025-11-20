@@ -105,9 +105,15 @@ struct VideoPlayerView: View {
         
         switch event.keyCode {
         case 123: // Left arrow
-            viewModel.playPrevious()
+            viewModel.seekBackward(seconds: viewModel.settings.seekBackwardSeconds)
             return nil
         case 124: // Right arrow
+            viewModel.seekForward(seconds: viewModel.settings.seekForwardSeconds)
+            return nil
+        case 126: // Up arrow
+            viewModel.playPrevious()
+            return nil
+        case 125: // Down arrow
             viewModel.playNext()
             return nil
         case 51: // Delete key
@@ -124,10 +130,10 @@ struct VideoPlayerView: View {
                 viewModel.moveCurrentFile()
                 return nil
             } else if characters == "," {
-                viewModel.seekBackward(seconds: 10)
+                viewModel.seekBackward(seconds: viewModel.settings.seekBackwardSeconds)
                 return nil
             } else if characters == "." {
-                viewModel.seekForward(seconds: 10)
+                viewModel.seekForward(seconds: viewModel.settings.seekForwardSeconds)
                 return nil
             }
         }

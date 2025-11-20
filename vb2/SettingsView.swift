@@ -126,9 +126,11 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         KeyboardShortcutRow(key: ",", description: "Seek backward \(Int(viewModel.settings.seekBackwardSeconds))s")
                         KeyboardShortcutRow(key: ".", description: "Seek forward \(Int(viewModel.settings.seekForwardSeconds))s")
+                        KeyboardShortcutRow(key: "←", description: "Seek backward \(Int(viewModel.settings.seekBackwardSeconds))s")
+                        KeyboardShortcutRow(key: "→", description: "Seek forward \(Int(viewModel.settings.seekForwardSeconds))s")
                         KeyboardShortcutRow(key: "Space", description: "Play/Pause")
-                        KeyboardShortcutRow(key: "←", description: "Previous video")
-                        KeyboardShortcutRow(key: "→", description: "Next video")
+                        KeyboardShortcutRow(key: "↑", description: "Previous video")
+                        KeyboardShortcutRow(key: "↓", description: "Next video")
                         KeyboardShortcutRow(key: "R", description: "Random video")
                         HStack {
                             KeyboardShortcutRow(key: "M", description: "Move file to destination")
